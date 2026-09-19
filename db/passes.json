@@ -1,0 +1,20 @@
+[
+  {
+    "code": "PASS1HR",
+    "hours": 1,
+    "used": false,
+    "label": "1-Hour Sprint Pass"
+  },
+  {
+    "code": "PASS2HR",
+    "hours": 2,
+    "used": false,
+    "label": "2-Hour Assignment Pack"
+  },
+  {
+    "code": "PASS3HR",
+    "hours": 3,
+    "used": false,
+    "label": "3-Hour Project Pack"
+  }
+]

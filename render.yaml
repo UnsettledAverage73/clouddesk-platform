@@ -19,3 +19,7 @@ services:
         sync: false
       - key: INSTANCE_TAG
         value: AWS-Cloud-Desktop
+      - key: RAZORPAY_KEY_ID
+        value: rzp_test_Te2jnVAT4J1toj
+      - key: RAZORPAY_KEY_SECRET
+        sync: false

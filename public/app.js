@@ -339,7 +339,7 @@ function startStudentCountdown(expiresAt) {
 }
 
 // ==========================================
-// PAYMENT INTEGRATION (BUY HOURS)
+// RAZORPAY STANDARD WEB CHECKOUT
 // ==========================================
 
 async function initiatePurchase(planId) {
@@ -349,65 +349,94 @@ async function initiatePurchase(planId) {
         return;
     }
 
+    showToast('Creating Razorpay order...');
+
     try {
-        const res = await fetch('/api/payment/create-order', {
+        const res = await fetch('/api/create-order', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${getToken()}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ planId })
+            body: JSON.stringify({ planId: planId })
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to initiate purchase');
+        const orderData = await res.json();
+        if (!res.ok) throw new Error(orderData.error || 'Failed to create order');
 
-        currentPendingOrder = data;
+        // Check if Razorpay script is loaded
+        if (typeof Razorpay === 'undefined') {
+            throw new Error('Razorpay Checkout SDK is loading, please try again in a moment');
+        }
 
-        // Open checkout modal
-        document.getElementById('checkoutPlanLabel').innerText = `${data.plan.label} (${data.plan.hours} Hours)`;
-        document.getElementById('checkoutAmountDisplay').innerText = `₹${data.plan.priceInr}`;
-        document.getElementById('paymentModal').classList.remove('hidden');
-    } catch (err) {
-        showToast('Error: ' + err.message);
-    }
-}
+        // Configure Razorpay Standard Checkout Options
+        const options = {
+            key: orderData.key_id,
+            amount: orderData.amount, // in paise
+            currency: orderData.currency || 'INR',
+            name: 'CloudDesk OS',
+            description: `Workstation Pass (${orderData.amount / 100} INR)`,
+            image: 'https://cdn-icons-png.flaticon.com/512/906/906324.png',
+            order_id: orderData.order_id,
+            handler: async function (response) {
+                showToast('Verifying payment signature with server...');
+                try {
+                    // Send razorpay_payment_id, razorpay_order_id, razorpay_signature to backend
+                    const verifyRes = await fetch('/api/verify-payment', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${getToken()}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                            planId: planId
+                        })
+                    });
 
-async function confirmPaymentSimulation() {
-    if (!currentPendingOrder) return;
-    const btn = document.getElementById('confirmPayBtn');
-    btn.disabled = true;
-    btn.innerText = 'Verifying with UPI...';
-
-    try {
-        const res = await fetch('/api/payment/verify', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${getToken()}`,
-                'Content-Type': 'application/json'
+                    const verifyResult = await verifyRes.json();
+                    if (verifyResult.success) {
+                        showToast(verifyResult.message || 'Payment Successful! Hours credited.');
+                        await checkAuth();
+                        await fetchEc2Status();
+                    } else {
+                        showToast('Verification Failed: ' + (verifyResult.message || 'Signature mismatch'));
+                    }
+                } catch (verifyErr) {
+                    console.error('Verify error:', verifyErr);
+                    showToast('Payment verification network error: ' + verifyErr.message);
+                }
             },
-            body: JSON.stringify({
-                orderId: currentPendingOrder.orderId,
-                razorpayPaymentId: 'sim_pay_' + Date.now(),
-                razorpaySignature: 'sim_sig'
-            })
+            prefill: {
+                name: currentUser ? currentUser.name : '',
+                email: currentUser ? currentUser.email : ''
+            },
+            notes: {
+                planId: planId,
+                userId: currentUser ? currentUser.id : ''
+            },
+            theme: {
+                color: '#10b981'
+            },
+            modal: {
+                ondismiss: function () {
+                    showToast('Payment cancelled by user');
+                }
+            }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+            console.error('Payment Failed:', response.error);
+            showToast('Payment failed: ' + (response.error.description || response.error.reason));
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+        rzp.open();
 
-        closePaymentModal();
-        showToast(data.message);
-        await checkAuth();
     } catch (err) {
-        showToast('Verification error: ' + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = 'Simulate Payment & Credit Hours';
+        console.error('Checkout error:', err);
+        showToast('Checkout Error: ' + err.message);
     }
-}
-
-function closePaymentModal() {
-    document.getElementById('paymentModal').classList.add('hidden');
-    currentPendingOrder = null;
 }
 
 // ==========================================

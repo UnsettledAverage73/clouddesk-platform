@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -32,14 +33,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Initialize AWS EC2 Client
 const ec2Client = new EC2Client({ region: REGION });
 
-// Optional Razorpay Client
-let razorpayClient = null;
-if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-    razorpayClient = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET
-    });
-}
+// Initialize Razorpay Client with credentials
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_Te2jnVAT4J1toj',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || 'FHr2gJAFoHZVYPKKte4qMhWQ'
+});
 
 // Session state tracking
 let activeSession = {
@@ -313,127 +311,170 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 });
 
 // ==========================================
-// 3. PAYMENT INTEGRATION (RAZORPAY & DEMO UPI)
+// 3. RAZORPAY STANDARD CHECKOUT ENDPOINTS
 // ==========================================
 
-// Create Order (Prepares payment)
-app.post('/api/payment/create-order', authenticateToken, requireStudent, async (req, res) => {
-    const { planId } = req.body;
-    const plan = PLANS[planId];
-
-    if (!plan) {
-        return res.status(400).json({ error: 'Invalid plan selected' });
-    }
-
-    const user = db.findUserById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
+// STEP 1: Backend - Create Order
+// Endpoint: POST /api/create-order
+app.post(['/api/create-order', '/api/payment/create-order'], async (req, res) => {
     try {
-        if (razorpayClient) {
-            // Live Razorpay Mode
-            const options = {
-                amount: plan.priceInr * 100, // in paise
-                currency: 'INR',
-                receipt: `rcpt_${Date.now()}`,
-                notes: { userId: user.id, planId: plan.id, hours: plan.hours }
-            };
-            const rzOrder = await razorpayClient.orders.create(options);
+        let { amount, currency = 'INR', receipt, planId } = req.body;
+        let selectedPlan = null;
+        let userId = null;
+        let userEmail = null;
 
-            const order = db.createOrder({
-                userId: user.id,
-                userEmail: user.email,
-                planId: plan.id,
-                hours: plan.hours,
-                amountInr: plan.priceInr,
-                razorpayOrderId: rzOrder.id,
-                provider: 'razorpay'
-            });
-
-            return res.json({
-                success: true,
-                orderId: order.id,
-                razorpayOrderId: rzOrder.id,
-                amount: rzOrder.amount,
-                currency: 'INR',
-                keyId: process.env.RAZORPAY_KEY_ID,
-                plan: plan,
-                mode: 'live'
-            });
-        } else {
-            // Instant UPI / Demo Simulation Mode
-            const order = db.createOrder({
-                userId: user.id,
-                userEmail: user.email,
-                planId: plan.id,
-                hours: plan.hours,
-                amountInr: plan.priceInr,
-                provider: 'demo_upi'
-            });
-
-            return res.json({
-                success: true,
-                orderId: order.id,
-                amount: plan.priceInr,
-                currency: 'INR',
-                plan: plan,
-                mode: 'demo',
-                message: 'Demo UPI / Sandbox checkout mode active. You can instantly simulate payment.'
-            });
-        }
-    } catch (err) {
-        console.error('Create order error:', err);
-        res.status(500).json({ error: err.message || 'Payment initiation failed' });
-    }
-});
-
-// Verify & Finalize Payment (Credits Hours to Student)
-app.post('/api/payment/verify', authenticateToken, requireStudent, async (req, res) => {
-    const { orderId, razorpayPaymentId, razorpaySignature } = req.body;
-
-    const orders = db.getOrders();
-    const order = orders.find(o => o.id === orderId);
-
-    if (!order) {
-        return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (order.status === 'completed') {
-        return res.json({ message: 'Order already completed', hoursBalance: db.findUserById(order.userId)?.hoursBalance });
-    }
-
-    try {
-        if (order.provider === 'razorpay') {
-            const body = order.razorpayOrderId + '|' + razorpayPaymentId;
-            const expectedSignature = crypto
-                .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-                .update(body.toString())
-                .digest('hex');
-
-            if (expectedSignature !== razorpaySignature) {
-                return res.status(400).json({ error: 'Invalid payment signature verification' });
+        // Check if optional user token was passed
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, JWT_SECRET);
+                userId = decoded.id;
+                userEmail = decoded.email;
+            } catch (e) {
+                // Token optional for public checkout
             }
         }
 
-        // Credit the student's account
-        const user = db.findUserById(order.userId);
-        const newBalance = (user.hoursBalance || 0) + order.hours;
-        db.updateUser(user.id, { hoursBalance: newBalance });
+        // If planId provided, compute amount in paise
+        if (planId && PLANS[planId]) {
+            selectedPlan = PLANS[planId];
+            amount = selectedPlan.priceInr * 100; // in paise
+        }
 
-        db.updateOrder(order.id, {
-            status: 'completed',
-            completedAt: new Date().toISOString(),
-            paymentId: razorpayPaymentId || `sim_${Date.now()}`
+        // Validate amount
+        if (!amount || typeof amount !== 'number') {
+            amount = parseInt(amount, 10);
+        }
+
+        if (isNaN(amount) || amount < 100) {
+            return res.status(400).json({
+                error: 'Invalid amount: Amount must be at least 100 paise (₹1.00)'
+            });
+        }
+
+        const receiptId = receipt || `rcpt_${Date.now().toString().slice(-8)}`;
+
+        const orderOptions = {
+            amount: amount,
+            currency: currency,
+            receipt: receiptId,
+            notes: {
+                planId: selectedPlan ? selectedPlan.id : 'custom',
+                userId: userId || 'guest'
+            }
+        };
+
+        const rzOrder = await razorpay.orders.create(orderOptions);
+
+        // Record order in database
+        db.createOrder({
+            id: rzOrder.id,
+            userId: userId,
+            userEmail: userEmail,
+            planId: selectedPlan ? selectedPlan.id : null,
+            hours: selectedPlan ? selectedPlan.hours : 0,
+            amountInr: amount / 100,
+            amountPaise: amount,
+            currency: currency,
+            razorpayOrderId: rzOrder.id,
+            status: 'created',
+            provider: 'razorpay'
         });
 
-        res.json({
+        res.status(200).json({
+            order_id: rzOrder.id,
+            amount: rzOrder.amount,
+            currency: rzOrder.currency,
+            key_id: process.env.RAZORPAY_KEY_ID
+        });
+    } catch (err) {
+        console.error('Razorpay Order Creation Error:', err);
+        res.status(500).json({
+            error: err.error?.description || err.message || 'Razorpay order creation failed'
+        });
+    }
+});
+
+// STEP 3: Backend - Verify Payment Signature
+// Endpoint: POST /api/verify-payment
+app.post(['/api/verify-payment', '/api/payment/verify'], async (req, res) => {
+    try {
+        const {
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature,
+            orderId, // backward compatibility
+            planId
+        } = req.body;
+
+        const effectiveOrderId = razorpay_order_id || orderId;
+
+        // Validate required fields
+        if (!effectiveOrderId || !razorpay_payment_id || !razorpay_signature) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required payment verification fields (order_id, payment_id, signature)'
+            });
+        }
+
+        // HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET)
+        const textToSign = effectiveOrderId + '|' + razorpay_payment_id;
+        const generated_signature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+            .update(textToSign)
+            .digest('hex');
+
+        // Signature comparison
+        if (generated_signature !== razorpay_signature) {
+            return res.status(400).json({
+                success: false,
+                message: 'Signature verification failed. Invalid payment signature.'
+            });
+        }
+
+        // Find and update the order
+        const orders = db.getOrders();
+        const order = orders.find(o => o.razorpayOrderId === effectiveOrderId || o.id === effectiveOrderId);
+
+        let hoursCredited = 0;
+        let newBalance = null;
+
+        if (order) {
+            db.updateOrder(order.id, {
+                status: 'completed',
+                razorpayPaymentId: razorpay_payment_id,
+                razorpaySignature: razorpay_signature,
+                completedAt: new Date().toISOString()
+            });
+
+            // Credit hours to student account if user exists
+            if (order.userId) {
+                const user = db.findUserById(order.userId);
+                if (user) {
+                    hoursCredited = order.hours || (planId && PLANS[planId] ? PLANS[planId].hours : 0);
+                    newBalance = (user.hoursBalance || 0) + hoursCredited;
+                    db.updateUser(user.id, { hoursBalance: newBalance });
+                }
+            }
+        } else if (planId && PLANS[planId]) {
+            hoursCredited = PLANS[planId].hours;
+        }
+
+        res.status(200).json({
             success: true,
-            message: `Payment successful! Added +${order.hours} hour(s) to your account.`,
-            hoursAdded: order.hours,
+            message: 'Payment verified successfully!',
+            payment_id: razorpay_payment_id,
+            order_id: effectiveOrderId,
+            hoursAdded: hoursCredited,
             newHoursBalance: newBalance
         });
     } catch (err) {
-        console.error('Payment verify error:', err);
-        res.status(500).json({ error: err.message || 'Payment verification failed' });
+        console.error('Payment Verification Error:', err);
+        res.status(500).json({
+            success: false,
+            error: err.message || 'Payment verification processing failed'
+        });
     }
 });
 
