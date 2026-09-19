@@ -19,8 +19,27 @@ function updateUI(data) {
     const runningActions = document.getElementById('runningActions');
     const vncCmd = document.getElementById('vncCmd');
 
+    const authAlertBanner = document.getElementById('authAlertBanner');
+    const authErrorMsg = document.getElementById('authErrorMsg');
+
+    if (data.error) {
+        if (authAlertBanner) {
+            authAlertBanner.classList.remove('hidden');
+            if (authErrorMsg) authErrorMsg.innerText = data.error;
+        }
+        statusBadge.className = 'text-xs px-2.5 py-1 rounded-full font-semibold inline-flex items-center space-x-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/30';
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span><span>AWS SESSION EXPIRED</span>`;
+        ipDisplay.innerText = 'Token Expired';
+        startBtn.classList.add('hidden');
+        stopBtn.classList.add('hidden');
+        runningActions.classList.add('hidden');
+        return;
+    } else {
+        if (authAlertBanner) authAlertBanner.classList.add('hidden');
+    }
+
     if (!data.exists) {
-        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>NOT FOUND</span>`;
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span><span>NOT FOUND</span>`;
         ipDisplay.innerText = 'None';
         startBtn.classList.add('hidden');
         stopBtn.classList.add('hidden');

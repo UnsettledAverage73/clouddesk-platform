@@ -125,6 +125,16 @@
                     </div>
                 </div>
 
+                <!-- Auth Alert Banner -->
+                <div id="authAlertBanner" class="hidden my-4 p-4 rounded-xl bg-rose-950/40 border border-rose-800/40 text-rose-200 flex items-start space-x-3">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-400 mt-1"></i>
+                    <div class="text-xs space-y-1">
+                        <strong class="font-bold text-rose-300 block text-sm">AWS Learner Lab Session Expired</strong>
+                        <p id="authErrorMsg">Your AWS Learner Lab session has timed out or needs refreshed credentials.</p>
+                        <p class="text-slate-400">To fix: Click <strong>"Start Lab"</strong> in AWS Academy, open <strong>AWS Details</strong>, and update your <code class="bg-slate-900 px-1 py-0.5 rounded text-indigo-300">AWS_SESSION_TOKEN</code> in your Render Dashboard.</p>
+                    </div>
+                </div>
+
                 <!-- Instance Details & Quick Launch -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-6">
                     <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
