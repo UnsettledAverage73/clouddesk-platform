@@ -13,13 +13,31 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const REGION = process.env.AWS_REGION || 'us-east-1';
 const INSTANCE_TAG = process.env.INSTANCE_TAG || 'AWS-Cloud-Desktop';
+const ADMIN_KEY = process.env.ADMIN_KEY || 'atharva-owner-2026';
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize AWS EC2 Client (picks up ENV or local ~/.aws/credentials automatically)
+// Initialize AWS EC2 Client
 const ec2Client = new EC2Client({ region: REGION });
+
+// Session state tracking
+let activeSession = {
+    isActive: false,
+    type: 'none', // 'owner' | 'student'
+    code: null,
+    startedAt: null,
+    expiresAt: null,
+    timerId: null
+};
+
+// Pass codes store (Pre-seeded with demo codes)
+let passCodes = {
+    'PASS1HR': { hours: 1, used: false, label: '1-Hour Sprint Pass' },
+    'PASS2HR': { hours: 2, used: false, label: '2-Hour Assignment Pack' },
+    'PASS3HR': { hours: 3, used: false, label: '3-Hour Project Pack' }
+};
 
 // Helper to query instance state using AWS SDK
 async function getInstanceState() {
@@ -76,67 +94,215 @@ async function getInstanceState() {
     }
 }
 
-// API: Status
+// Start instance helper
+async function bootInstance() {
+    const info = await getInstanceState();
+    if (!info.exists) throw new Error('Instance not found');
+
+    if (info.state !== 'running') {
+        await ec2Client.send(new StartInstancesCommand({ InstanceIds: [info.instanceId] }));
+    }
+
+    // Poll for public IP
+    let newIp = info.publicIp;
+    for (let i = 0; i < 20; i++) {
+        if (newIp && info.state === 'running') break;
+        await new Promise(r => setTimeout(r, 2000));
+        const check = await getInstanceState();
+        if (check.state === 'running' && check.publicIp) {
+            newIp = check.publicIp;
+            break;
+        }
+    }
+    return newIp;
+}
+
+// Stop instance helper
+async function shutdownInstance() {
+    const info = await getInstanceState();
+    if (info.exists && info.state === 'running') {
+        await ec2Client.send(new StopInstancesCommand({ InstanceIds: [info.instanceId] }));
+    }
+}
+
+// ==========================================
+// 1. PUBLIC / GENERAL API
+// ==========================================
+
 app.get('/api/status', async (req, res) => {
     const data = await getInstanceState();
-    res.json(data);
+    const remainingSeconds = activeSession.expiresAt ? Math.max(0, Math.floor((activeSession.expiresAt - Date.now()) / 1000)) : null;
+
+    res.json({
+        ...data,
+        session: {
+            isActive: activeSession.isActive,
+            type: activeSession.type,
+            code: activeSession.code,
+            expiresAt: activeSession.expiresAt,
+            remainingSeconds: remainingSeconds
+        }
+    });
 });
 
-// API: Start
-app.post('/api/start', async (req, res) => {
+// ==========================================
+// 2. STUDENT / HOURLY SESSION ENDPOINT
+// ==========================================
+
+app.post('/api/session/start', async (req, res) => {
+    const { code } = req.body;
+    if (!code) {
+        return res.status(400).json({ error: 'Access pass code is required' });
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+    const pass = passCodes[cleanCode];
+
+    if (!pass) {
+        return res.status(401).json({ error: 'Invalid access pass code' });
+    }
+
+    if (pass.used) {
+        return res.status(403).json({ error: 'This pass code has already been redeemed' });
+    }
+
     try {
-        const info = await getInstanceState();
-        if (!info.exists) {
-            return res.status(404).json({ error: 'Instance not found' });
-        }
+        // Clear any previous timer
+        if (activeSession.timerId) clearTimeout(activeSession.timerId);
 
-        if (info.state === 'running') {
-            return res.json({ message: 'Instance is already running', info });
-        }
+        const newIp = await bootInstance();
 
-        const startCmd = new StartInstancesCommand({ InstanceIds: [info.instanceId] });
-        await ec2Client.send(startCmd);
+        // Mark pass as used
+        pass.used = true;
+        const durationHours = pass.hours || 1;
+        const durationMs = durationHours * 3600 * 1000;
+        const expiresAt = Date.now() + durationMs;
 
-        // Poll for public IP
-        let newIp = null;
-        for (let i = 0; i < 20; i++) {
-            await new Promise(r => setTimeout(r, 2000));
-            const check = await getInstanceState();
-            if (check.state === 'running' && check.publicIp) {
-                newIp = check.publicIp;
-                break;
+        // Schedule auto-shutdown
+        const timerId = setTimeout(async () => {
+            console.log(`[AutoShutdown] Pass ${cleanCode} (${durationHours} hrs) expired. Stopping EC2 instance...`);
+            try {
+                await shutdownInstance();
+            } catch (err) {
+                console.error('Auto-shutdown failed:', err);
             }
-        }
+            activeSession = { isActive: false, type: 'none', code: null, timerId: null };
+        }, durationMs);
 
-        res.json({ success: true, state: 'running', publicIp: newIp });
+        activeSession = {
+            isActive: true,
+            type: 'student',
+            code: cleanCode,
+            startedAt: Date.now(),
+            expiresAt: expiresAt,
+            timerId: timerId
+        };
+
+        res.json({
+            success: true,
+            message: `Hourly session started for ${durationHours} hour(s)`,
+            publicIp: newIp,
+            durationHours: durationHours,
+            expiresAt: expiresAt
+        });
     } catch (err) {
-        console.error('Error starting instance:', err);
+        console.error('Failed to start hourly student session:', err);
         res.status(500).json({ error: err.message || err.toString() });
     }
 });
 
-// API: Stop (preserves credits)
-app.post('/api/stop', async (req, res) => {
+// ==========================================
+// 3. OWNER / ADMIN ENDPOINTS (NO RESTRICTIONS)
+// ==========================================
+
+// Middleware for Admin Key verification
+function requireOwner(req, res, next) {
+    const key = req.headers['x-admin-key'] || req.query.adminKey || req.body.adminKey;
+    if (key !== ADMIN_KEY) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid Admin Key' });
+    }
+    next();
+}
+
+// Owner Start: UNLIMITED TIME / NO AUTO-SHUTDOWN
+app.post('/api/owner/start', requireOwner, async (req, res) => {
     try {
-        const info = await getInstanceState();
-        if (!info.exists) {
-            return res.status(404).json({ error: 'Instance not found' });
-        }
+        if (activeSession.timerId) clearTimeout(activeSession.timerId);
 
-        if (info.state === 'stopped') {
-            return res.json({ message: 'Instance is already stopped', info });
-        }
+        const newIp = await bootInstance();
 
-        const stopCmd = new StopInstancesCommand({ InstanceIds: [info.instanceId] });
-        await ec2Client.send(stopCmd);
+        activeSession = {
+            isActive: true,
+            type: 'owner',
+            code: 'OWNER_MASTER',
+            startedAt: Date.now(),
+            expiresAt: null, // Unlimited!
+            timerId: null
+        };
 
-        res.json({ success: true, message: 'Instance stop initiated. Compute billing paused!' });
+        res.json({
+            success: true,
+            message: 'Owner session started (Unlimited time, no auto-shutdown)',
+            publicIp: newIp
+        });
     } catch (err) {
-        console.error('Error stopping instance:', err);
+        console.error('Owner start error:', err);
         res.status(500).json({ error: err.message || err.toString() });
     }
+});
+
+// Owner Stop: Immediate shutdown
+app.post('/api/owner/stop', requireOwner, async (req, res) => {
+    try {
+        if (activeSession.timerId) clearTimeout(activeSession.timerId);
+        await shutdownInstance();
+        activeSession = { isActive: false, type: 'none', code: null, timerId: null };
+
+        res.json({
+            success: true,
+            message: 'Workstation stopped successfully. Compute billing paused!'
+        });
+    } catch (err) {
+        console.error('Owner stop error:', err);
+        res.status(500).json({ error: err.message || err.toString() });
+    }
+});
+
+// Owner Generate Pass: Create new pass codes for paying students
+app.post('/api/owner/generate-pass', requireOwner, (req, res) => {
+    const { hours = 2, label = 'Student Pass' } = req.body;
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const code = `PASS-${hours}H-${randomSuffix}`;
+
+    passCodes[code] = {
+        hours: parseInt(hours),
+        used: false,
+        label: label,
+        createdAt: new Date().toISOString()
+    };
+
+    res.json({
+        success: true,
+        code: code,
+        hours: hours,
+        label: label
+    });
+});
+
+// Owner List Passes
+app.get('/api/owner/passes', requireOwner, (req, res) => {
+    res.json({
+        passes: passCodes,
+        activeSession: {
+            isActive: activeSession.isActive,
+            type: activeSession.type,
+            code: activeSession.code,
+            expiresAt: activeSession.expiresAt
+        }
+    });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`CloudDesk Platform server running at http://localhost:${PORT}`);
+    console.log(`Owner Admin Key: ${ADMIN_KEY}`);
 });

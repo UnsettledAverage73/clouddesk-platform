@@ -17,47 +17,22 @@
                     fontFamily: {
                         sans: ['Plus Jakarta Sans', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        brand: {
-                            50: '#eef2ff',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                        },
-                        dark: {
-                            bg: '#090d16',
-                            card: '#0f172a',
-                            border: '#1e293b',
-                            hover: '#1e293b',
-                        }
                     }
                 }
             }
         }
     </script>
     <style>
-        body {
-            background-color: #080c14;
-            color: #f1f5f9;
-        }
-        .glow-green {
-            box-shadow: 0 0 25px rgba(34, 197, 94, 0.25);
-        }
-        .glow-brand {
-            box-shadow: 0 0 35px rgba(99, 102, 241, 0.25);
-        }
+        body { background-color: #080c14; color: #f1f5f9; }
         .glass-card {
             background: rgba(15, 23, 42, 0.75);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .animate-pulse-slow {
-            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
+        .glow-brand { box-shadow: 0 0 35px rgba(99, 102, 241, 0.25); }
     </style>
 </head>
-<body class="font-sans min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+<body class="font-sans min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
 
     <!-- Top Navbar -->
     <header class="border-b border-slate-800 bg-slate-950/60 backdrop-blur-md sticky top-0 z-40">
@@ -69,21 +44,24 @@
                 <div>
                     <div class="flex items-center space-x-2">
                         <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">CloudDesk</span>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">v1.0 Pro</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">v1.1 Multi-Mode</span>
                     </div>
-                    <p class="text-xs text-slate-400">Cloud Workstations for Students & Developers</p>
+                    <p class="text-xs text-slate-400">Cloud Workstations on Demand</p>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-3">
+                <!-- Mode Switcher Badge -->
+                <button onclick="toggleOwnerModal()" id="modeToggleBtn" class="text-xs px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:border-indigo-500 text-slate-300 hover:text-white transition flex items-center space-x-2">
+                    <i class="fa-solid fa-key text-indigo-400"></i>
+                    <span id="modeLabel">Switch to Owner Mode</span>
+                </button>
+
                 <div class="hidden sm:flex items-center space-x-2 text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300">
                     <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    <span>Region: <strong class="text-white">us-east-1</strong> (AWS)</span>
+                    <span>8 GB RAM / 2 vCPU</span>
                 </div>
-                <div class="flex items-center space-x-2 text-xs bg-indigo-950/50 border border-indigo-800/40 text-indigo-300 px-3 py-1.5 rounded-lg">
-                    <i class="fa-solid fa-memory text-indigo-400"></i>
-                    <span>8 GB Cloud RAM</span>
-                </div>
+
                 <button onclick="refreshStatus()" id="refreshBtn" class="text-xs text-slate-400 hover:text-white p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 transition">
                     <i class="fa-solid fa-rotate-right" id="refreshIcon"></i>
                 </button>
@@ -94,6 +72,20 @@
     <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
+        <!-- Active Mode Banner (Owner vs Student) -->
+        <div id="ownerBanner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-indigo-950/80 to-purple-950/60 border border-indigo-500/40 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-white">Owner Unlimited Mode Active</h4>
+                    <p class="text-xs text-indigo-200">You are using your private endpoint. No timers or auto-shutdown restrictions.</p>
+                </div>
+            </div>
+            <button onclick="logoutOwner()" class="text-xs text-slate-400 hover:text-white underline">Exit Owner Mode</button>
+        </div>
+
         <!-- Hero Status Banner -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Left: Instance Main Card -->
@@ -102,7 +94,7 @@
 
                 <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
                     <div>
-                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Workstation</span>
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Target Instance</span>
                         <h2 class="text-2xl font-bold text-white mt-1 flex items-center space-x-3">
                             <span>AWS-Cloud-Desktop</span>
                             <span id="statusBadge" class="text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center space-x-1.5 bg-slate-800 text-slate-400 border border-slate-700">
@@ -112,15 +104,15 @@
                         </h2>
                     </div>
 
-                    <!-- Action Buttons -->
-                    <div class="flex items-center space-x-3">
-                        <button id="startBtn" onclick="startWorkstation()" class="hidden px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold shadow-lg shadow-emerald-600/20 transition flex items-center space-x-2">
+                    <!-- Owner Action Buttons -->
+                    <div id="ownerControls" class="hidden flex items-center space-x-3">
+                        <button id="ownerStartBtn" onclick="ownerStartWorkstation()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center space-x-2">
                             <i class="fa-solid fa-play text-xs"></i>
-                            <span>Start Desktop</span>
+                            <span>Owner Start (Unlimited)</span>
                         </button>
-                        <button id="stopBtn" onclick="stopWorkstation()" class="hidden px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-sm font-semibold shadow-lg shadow-rose-600/20 transition flex items-center space-x-2">
+                        <button id="ownerStopBtn" onclick="ownerStopWorkstation()" class="px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-sm font-semibold shadow-lg shadow-rose-600/20 transition flex items-center space-x-2">
                             <i class="fa-solid fa-power-off text-xs"></i>
-                            <span>Stop & Save Credits</span>
+                            <span>Stop Instance</span>
                         </button>
                     </div>
                 </div>
@@ -135,45 +127,72 @@
                     </div>
                 </div>
 
-                <!-- Instance Details & Quick Launch -->
+                <!-- Instance Details -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-6">
                     <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
                         <span class="text-xs text-slate-400 block mb-1">Public IP</span>
                         <span id="ipDisplay" class="font-mono text-sm font-semibold text-emerald-400">Loading...</span>
                     </div>
                     <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
-                        <span class="text-xs text-slate-400 block mb-1">Instance Type</span>
-                        <span id="typeDisplay" class="font-mono text-sm font-semibold text-white">t3.large (8 GB)</span>
+                        <span class="text-xs text-slate-400 block mb-1">Instance Specs</span>
+                        <span class="font-mono text-sm font-semibold text-white">8 GB / 2 vCPU</span>
                     </div>
                     <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
-                        <span class="text-xs text-slate-400 block mb-1">OS / Desktop</span>
-                        <span class="font-mono text-sm font-semibold text-white">Ubuntu 24 / XFCE</span>
+                        <span class="text-xs text-slate-400 block mb-1">Session Mode</span>
+                        <span id="sessionTypeDisplay" class="font-mono text-sm font-semibold text-indigo-400">Standard</span>
                     </div>
                     <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
-                        <span class="text-xs text-slate-400 block mb-1">Laptop RAM Impact</span>
-                        <span class="font-mono text-sm font-semibold text-emerald-400">0% (Cloud Offload)</span>
+                        <span class="text-xs text-slate-400 block mb-1">Auto-Shutdown Timer</span>
+                        <span id="countdownDisplay" class="font-mono text-sm font-semibold text-slate-300">None</span>
                     </div>
                 </div>
 
-                <!-- Launch Options Banner -->
-                <div id="runningActions" class="p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-800/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <!-- Student Hourly Access Box (Shown to customers) -->
+                <div id="studentPassBox" class="p-5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-sm font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-ticket text-emerald-400"></i>
+                                <span>Redeem Hourly Access Pass</span>
+                            </h4>
+                            <p class="text-xs text-slate-400 mt-0.5">Enter your session pass code (e.g. PASS2HR) to boot the 8GB workstation.</p>
+                        </div>
+                        <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">Hourly Protection</span>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row items-center gap-3">
+                        <div class="relative flex-1 w-full">
+                            <input type="text" id="passCodeInput" placeholder="Enter code (e.g. PASS2HR)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <button onclick="redeemStudentPass()" id="redeemBtn" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg shadow-emerald-600/20 transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-bolt text-xs"></i>
+                            <span>Start Hourly Session</span>
+                        </button>
+                    </div>
+
+                    <div class="text-[11px] text-slate-500 flex items-center space-x-1.5">
+                        <i class="fa-solid fa-shield-halved text-slate-400"></i>
+                        <span>Auto-shutdown engages automatically when your pass hours end to protect compute credits.</span>
+                    </div>
+                </div>
+
+                <!-- Running Actions (Desktop launch) -->
+                <div id="runningActions" class="hidden mt-6 p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-800/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                         <h4 class="text-sm font-semibold text-white flex items-center space-x-2">
                             <i class="fa-solid fa-globe text-indigo-400"></i>
-                            <span>Web Browser Desktop (Zero Install)</span>
+                            <span>Cloud Desktop Stream Active</span>
                         </h4>
-                        <p class="text-xs text-slate-400 mt-0.5">Stream the full Ubuntu desktop inside a browser tab with no client required.</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Stream the full Ubuntu desktop inside a browser tab with zero local RAM load.</p>
                     </div>
-                    <div class="flex items-center space-x-2 w-full sm:w-auto">
-                        <button onclick="openEmbeddedDesktop()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
-                            <i class="fa-solid fa-up-right-from-square text-xs"></i>
-                            <span>Launch GUI Desktop</span>
-                        </button>
-                    </div>
+                    <button onclick="openEmbeddedDesktop()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-up-right-from-square text-xs"></i>
+                        <span>Open Desktop in Browser</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Right: Quick Connect Box -->
+            <!-- Right: Developer & Owner Tools -->
             <div class="glass-card rounded-2xl p-6 flex flex-col justify-between space-y-4">
                 <div>
                     <h3 class="text-base font-bold text-white flex items-center space-x-2">
@@ -184,7 +203,6 @@
                 </div>
 
                 <div class="space-y-3 font-mono text-xs">
-                    <!-- SSH Option -->
                     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
                         <div class="flex items-center justify-between text-slate-400 mb-1">
                             <span>SSH Shortcut</span>
@@ -195,7 +213,6 @@
                         <div class="text-emerald-400">ssh cloud-desktop</div>
                     </div>
 
-                    <!-- VNC Viewer Option -->
                     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
                         <div class="flex items-center justify-between text-slate-400 mb-1">
                             <span>Native TigerVNC</span>
@@ -203,13 +220,12 @@
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                         </div>
-                        <div id="vncCmd" class="text-slate-300">vncviewer 100.54.14.11:5901</div>
+                        <div id="vncCmd" class="text-slate-300">vncviewer 44.200.233.144:5901</div>
                     </div>
 
-                    <!-- Password Box -->
                     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
                         <div>
-                            <span class="text-slate-400 block text-[11px]">VNC / RDP Password</span>
+                            <span class="text-slate-400 block text-[11px]">VNC Password</span>
                             <span class="text-indigo-300 font-semibold">LearnerLab2026!</span>
                         </div>
                         <button onclick="copyText('LearnerLab2026!', this)" class="text-indigo-400 hover:text-indigo-300">
@@ -218,123 +234,109 @@
                     </div>
                 </div>
 
+                <!-- Owner Pass Generator (Visible in Owner Mode) -->
+                <div id="ownerPassGenBox" class="hidden pt-4 border-t border-slate-800 space-y-3">
+                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider block">Student Pass Generator</span>
+                    <div class="flex items-center space-x-2">
+                        <select id="passHoursSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                            <option value="1">1 Hour</option>
+                            <option value="2" selected>2 Hours</option>
+                            <option value="3">3 Hours</option>
+                        </select>
+                        <button onclick="generateStudentPass()" class="flex-1 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition">Create Pass</button>
+                    </div>
+                    <div id="generatedPassResult" class="hidden text-xs font-mono bg-indigo-950/60 border border-indigo-800/40 p-2 rounded-lg text-emerald-400 flex items-center justify-between">
+                        <span id="genPassCode">CODE</span>
+                        <button onclick="copyText(document.getElementById('genPassCode').innerText, this)" class="text-indigo-300"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                </div>
+
                 <div class="text-[11px] text-slate-500 pt-2 border-t border-slate-800 flex items-center space-x-1.5">
                     <i class="fa-solid fa-shield-halved text-emerald-500"></i>
-                    <span>SSH Key auto-configured with 0400 permissions.</span>
+                    <span>Hardware: 8 GB RAM / 2 vCPUs / 30 GB SSD.</span>
                 </div>
             </div>
         </div>
 
-        <!-- Desktop Embed Modal / Workspace Area -->
-        <div id="desktopContainer" class="hidden glass-card rounded-2xl p-4 space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div class="flex items-center space-x-3">
-                    <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span class="font-bold text-sm text-white">Live Cloud Session</span>
-                    <span class="text-xs text-slate-400 hidden sm:inline">(Ubuntu 24.04 LTS — XFCE4)</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <button onclick="toggleFullscreen()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition flex items-center space-x-1.5">
-                        <i class="fa-solid fa-expand text-xs"></i>
-                        <span>Fullscreen</span>
-                    </button>
-                    <button onclick="closeEmbeddedDesktop()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/60 text-xs text-slate-300 hover:text-rose-300 transition">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="w-full bg-black rounded-xl overflow-hidden shadow-2xl relative" style="height: 780px;">
-                <iframe id="desktopIframe" src="" class="w-full h-full border-0"></iframe>
-            </div>
-        </div>
-
-        <!-- Commercial Section: Selling Plans for Other Students/Clients -->
+        <!-- Student Hourly Pricing Plans -->
         <div class="space-y-6 pt-4">
             <div class="text-center max-w-xl mx-auto space-y-2">
-                <span class="text-xs uppercase font-bold text-indigo-400 tracking-wider">Monetization Ready</span>
-                <h3 class="text-2xl font-extrabold text-white">Student & Developer Subscription Plans</h3>
-                <p class="text-sm text-slate-400">How you can offer pre-configured cloud workstations to classmates and developers who need more RAM.</p>
+                <span class="text-xs uppercase font-bold text-emerald-400 tracking-wider">Hourly Pay-As-You-Go</span>
+                <h3 class="text-2xl font-extrabold text-white">Student Hourly Sprint Passes</h3>
+                <p class="text-sm text-slate-400">Rent high-speed cloud RAM only when you need it for assignments, builds, or training.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Plan 1 -->
-                <div class="glass-card rounded-2xl p-6 border border-slate-800 hover:border-slate-700 transition relative flex flex-col justify-between">
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm font-semibold text-slate-300">Starter Dev</span>
-                            <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">Basic</span>
-                        </div>
-                        <div class="flex items-baseline space-x-1">
-                            <span class="text-3xl font-extrabold text-white">$7</span>
-                            <span class="text-xs text-slate-400">/ month (~₹599)</span>
-                        </div>
-                        <ul class="space-y-2.5 text-xs text-slate-300">
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i><span><strong>4 GB RAM</strong> (2 vCPUs)</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i><span>20 GB NVMe Storage</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i><span>Web Browser & VNC Access</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i><span>Perfect for Python & Web Dev</span></li>
+                <div class="glass-card rounded-2xl p-6 border border-slate-800 hover:border-slate-700 transition flex flex-col justify-between">
+                    <div class="space-y-3">
+                        <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">Sprint</span>
+                        <h4 class="text-base font-bold text-white">1-Hour Quick Build</h4>
+                        <div class="flex items-baseline space-x-1"><span class="text-3xl font-extrabold text-white">₹30</span><span class="text-xs text-slate-400">/ pass</span></div>
+                        <ul class="space-y-2 text-xs text-slate-300">
+                            <li>• 8 GB Cloud RAM (2 vCPUs)</li>
+                            <li>• Quick assignment debugging</li>
+                            <li>• Single project build</li>
                         </ul>
                     </div>
-                    <button class="mt-6 w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition">Select Plan</button>
+                    <button class="mt-4 w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300">Demo Code: PASS1HR</button>
                 </div>
 
-                <!-- Plan 2 (Highlighted) -->
-                <div class="glass-card rounded-2xl p-6 border border-indigo-500/50 glow-brand relative flex flex-col justify-between bg-gradient-to-b from-indigo-950/20 to-slate-900/80">
-                    <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider">Current Instance</div>
-                    <div class="space-y-4 mt-2">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm font-semibold text-indigo-300">Pro Workstation</span>
-                            <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">Popular</span>
-                        </div>
-                        <div class="flex items-baseline space-x-1">
-                            <span class="text-3xl font-extrabold text-white">$14</span>
-                            <span class="text-xs text-slate-400">/ month (~₹999)</span>
-                        </div>
-                        <ul class="space-y-2.5 text-xs text-slate-200">
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i><span><strong>8 GB RAM</strong> (2 vCPUs)</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i><span>30 GB NVMe Storage</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i><span>Instant Auto-Stop & Resume</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i><span>Ideal for Docker, Android & Flutter</span></li>
+                <div class="glass-card rounded-2xl p-6 border border-emerald-500/40 glow-brand relative flex flex-col justify-between bg-gradient-to-b from-emerald-950/10 to-slate-900/80">
+                    <div class="space-y-3">
+                        <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">Most Popular</span>
+                        <h4 class="text-base font-bold text-white">2-Hour Assignment Pack</h4>
+                        <div class="flex items-baseline space-x-1"><span class="text-3xl font-extrabold text-white">₹50</span><span class="text-xs text-slate-400">/ pass</span></div>
+                        <ul class="space-y-2 text-xs text-slate-200">
+                            <li>• 8 GB Cloud RAM (2 vCPUs)</li>
+                            <li>• Android Studio & Flutter compiles</li>
+                            <li>• Auto-shutdown protection</li>
                         </ul>
                     </div>
-                    <button class="mt-6 w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition shadow-lg shadow-indigo-600/25">Active Plan</button>
+                    <button class="mt-4 w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white">Demo Code: PASS2HR</button>
                 </div>
 
-                <!-- Plan 3 -->
-                <div class="glass-card rounded-2xl p-6 border border-slate-800 hover:border-slate-700 transition relative flex flex-col justify-between">
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm font-semibold text-slate-300">AI / ML Studio</span>
-                            <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">Heavy</span>
-                        </div>
-                        <div class="flex items-baseline space-x-1">
-                            <span class="text-3xl font-extrabold text-white">$29</span>
-                            <span class="text-xs text-slate-400">/ month (~₹2,499)</span>
-                        </div>
-                        <ul class="space-y-2.5 text-xs text-slate-300">
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i><span><strong>16 GB RAM</strong> (4 vCPUs)</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i><span>60 GB High-Speed NVMe</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i><span>Preloaded PyTorch & Jupyter</span></li>
-                            <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i><span>Model Training & Big Data</span></li>
+                <div class="glass-card rounded-2xl p-6 border border-slate-800 hover:border-slate-700 transition flex flex-col justify-between">
+                    <div class="space-y-3">
+                        <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">Exam Pack</span>
+                        <h4 class="text-base font-bold text-white">3-Hour Project Pack</h4>
+                        <div class="flex items-baseline space-x-1"><span class="text-3xl font-extrabold text-white">₹75</span><span class="text-xs text-slate-400">/ pass</span></div>
+                        <ul class="space-y-2 text-xs text-slate-300">
+                            <li>• 8 GB Cloud RAM (2 vCPUs)</li>
+                            <li>• Full lab practical sessions</li>
+                            <li>• PyTorch / ML data preprocessing</li>
                         </ul>
                     </div>
-                    <button class="mt-6 w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition">Select Plan</button>
+                    <button class="mt-4 w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300">Demo Code: PASS3HR</button>
                 </div>
             </div>
         </div>
 
     </main>
 
+    <!-- Owner Key Modal -->
+    <div id="ownerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl p-6 max-w-md w-full border border-indigo-500/40 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-crown text-indigo-400"></i>
+                    <span>Owner Private Authentication</span>
+                </h3>
+                <button onclick="toggleOwnerModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-400">Enter your private Admin Key to access unrestricted personal controls without hourly timers.</p>
+            <input type="password" id="ownerKeyInput" placeholder="Enter Admin Key" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+            <div class="flex items-center space-x-3">
+                <button onclick="submitOwnerKey()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition">Activate Owner Mode</button>
+                <button onclick="toggleOwnerModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 border border-slate-700 text-white text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2 transition transform translate-y-20 opacity-0 pointer-events-none z-50">
         <i class="fa-solid fa-circle-check text-emerald-400"></i>
         <span id="toastMsg">Notification</span>
     </div>
-
-    <footer class="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-        CloudDesk Platform &copy; 2026. Built with Terraform, AWS, XFCE & noVNC.
-    </footer>
 
     <script src="app.js"></script>
 </body>
