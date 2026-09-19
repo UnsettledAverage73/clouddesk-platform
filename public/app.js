@@ -410,7 +410,8 @@ async function initiatePurchase(planId) {
             },
             prefill: {
                 name: currentUser ? currentUser.name : '',
-                email: currentUser ? currentUser.email : ''
+                email: currentUser ? currentUser.email : '',
+                contact: (currentUser && currentUser.phone) || '9637843011'
             },
             notes: {
                 planId: planId,

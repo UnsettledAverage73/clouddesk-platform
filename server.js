@@ -282,7 +282,7 @@ app.post('/api/auth/student-login', (req, res) => {
     res.json({
         success: true,
         token: token,
-        user: { id: user.id, name: user.name, email: user.email, hoursBalance: user.hoursBalance }
+        user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '9637843011', hoursBalance: user.hoursBalance }
     });
 });
 
@@ -306,6 +306,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        phone: user.phone || '9637843011',
         hoursBalance: user.hoursBalance || 0
     });
 });
