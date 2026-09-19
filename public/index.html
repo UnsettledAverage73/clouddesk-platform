@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudDesk OS — Cloud Workstation Platform</title>
+    <title>CloudDesk — Cloud Workstation Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,17 +25,18 @@
     <style>
         body { background-color: #080c14; color: #f1f5f9; }
         .glass-card {
-            background: rgba(15, 23, 42, 0.75);
+            background: rgba(15, 23, 42, 0.8);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .glow-brand { box-shadow: 0 0 35px rgba(99, 102, 241, 0.25); }
+        .glow-green { box-shadow: 0 0 25px rgba(16, 185, 129, 0.2); }
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
 
     <!-- Top Navbar -->
-    <header class="border-b border-slate-800 bg-slate-950/60 backdrop-blur-md sticky top-0 z-40">
+    <header class="border-b border-slate-800 bg-slate-950/70 backdrop-blur-md sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
@@ -44,22 +45,39 @@
                 <div>
                     <div class="flex items-center space-x-2">
                         <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">CloudDesk</span>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">v1.1 Multi-Mode</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Cloud RAM on Demand</span>
                     </div>
-                    <p class="text-xs text-slate-400">Cloud Workstations on Demand</p>
+                    <p class="text-xs text-slate-400">8 GB Ubuntu Workstations for Students</p>
                 </div>
             </div>
 
+            <!-- Dynamic User Status & Auth Buttons -->
             <div class="flex items-center space-x-3">
-                <!-- Mode Switcher Badge -->
-                <button onclick="toggleOwnerModal()" id="modeToggleBtn" class="text-xs px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:border-indigo-500 text-slate-300 hover:text-white transition flex items-center space-x-2">
-                    <i class="fa-solid fa-key text-indigo-400"></i>
-                    <span id="modeLabel">Switch to Owner Mode</span>
-                </button>
+                <!-- Logged In State (Hidden by default) -->
+                <div id="userProfileNav" class="hidden flex items-center space-x-3">
+                    <div id="studentBalanceBadge" class="hidden text-xs bg-emerald-950/60 border border-emerald-800/40 text-emerald-300 px-3 py-1.5 rounded-xl font-mono flex items-center space-x-1.5">
+                        <i class="fa-solid fa-clock text-emerald-400"></i>
+                        <span>Balance: <strong id="navHoursBalance" class="text-white">0</strong> hrs</span>
+                    </div>
+                    <div id="ownerBadgeNav" class="hidden text-xs bg-indigo-950/60 border border-indigo-800/40 text-indigo-300 px-3 py-1.5 rounded-xl font-semibold flex items-center space-x-1.5">
+                        <i class="fa-solid fa-crown text-indigo-400"></i>
+                        <span>Owner Mode</span>
+                    </div>
+                    <button onclick="handleLogout()" class="text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900 transition">
+                        Sign Out
+                    </button>
+                </div>
 
-                <div class="hidden sm:flex items-center space-x-2 text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300">
-                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    <span>8 GB RAM / 2 vCPU</span>
+                <!-- Logged Out State -->
+                <div id="authNavButtons" class="flex items-center space-x-2">
+                    <button onclick="openStudentAuthModal('login')" class="text-xs px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition flex items-center space-x-1.5 shadow-lg shadow-emerald-600/20">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                        <span>Student Login</span>
+                    </button>
+                    <button onclick="openOwnerLoginModal()" class="text-xs px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:border-indigo-500 text-slate-300 hover:text-white transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-lock text-indigo-400"></i>
+                        <span class="hidden sm:inline">Owner Login</span>
+                    </button>
                 </div>
 
                 <button onclick="refreshStatus()" id="refreshBtn" class="text-xs text-slate-400 hover:text-white p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 transition">
@@ -72,262 +90,400 @@
     <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-        <!-- Active Mode Banner (Owner vs Student) -->
-        <div id="ownerBanner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-indigo-950/80 to-purple-950/60 border border-indigo-500/40 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm">
-                    <i class="fa-solid fa-crown"></i>
-                </div>
-                <div>
-                    <h4 class="text-sm font-bold text-white">Owner Unlimited Mode Active</h4>
-                    <p class="text-xs text-indigo-200">You are using your private endpoint. No timers or auto-shutdown restrictions.</p>
-                </div>
-            </div>
-            <button onclick="logoutOwner()" class="text-xs text-slate-400 hover:text-white underline">Exit Owner Mode</button>
-        </div>
-
-        <!-- Hero Status Banner -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Left: Instance Main Card -->
-            <div class="lg:col-span-2 glass-card rounded-2xl p-6 relative overflow-hidden shadow-2xl">
-                <div class="absolute -right-16 -top-16 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
-
-                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
+        <!-- ========================================== -->
+        <!-- 1. OWNER VIEW (ONLY VISIBLE TO OWNER) -->
+        <!-- ========================================== -->
+        <div id="ownerSection" class="hidden space-y-6">
+            <div class="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/80 to-purple-950/60 border border-indigo-500/40 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg">
+                        <i class="fa-solid fa-crown"></i>
+                    </div>
                     <div>
-                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Target Instance</span>
-                        <h2 class="text-2xl font-bold text-white mt-1 flex items-center space-x-3">
-                            <span>AWS-Cloud-Desktop</span>
-                            <span id="statusBadge" class="text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center space-x-1.5 bg-slate-800 text-slate-400 border border-slate-700">
-                                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
-                                <span>CHECKING...</span>
-                            </span>
-                        </h2>
-                    </div>
-
-                    <!-- Owner Action Buttons -->
-                    <div id="ownerControls" class="hidden flex items-center space-x-3">
-                        <button id="ownerStartBtn" onclick="ownerStartWorkstation()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center space-x-2">
-                            <i class="fa-solid fa-play text-xs"></i>
-                            <span>Owner Start (Unlimited)</span>
-                        </button>
-                        <button id="ownerStopBtn" onclick="ownerStopWorkstation()" class="px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-sm font-semibold shadow-lg shadow-rose-600/20 transition flex items-center space-x-2">
-                            <i class="fa-solid fa-power-off text-xs"></i>
-                            <span>Stop Instance</span>
-                        </button>
+                        <h3 class="text-base font-bold text-white">Owner Private Control Center</h3>
+                        <p class="text-xs text-indigo-200">You have unlimited runtime. No auto-shutdown timers enforced on your sessions.</p>
                     </div>
                 </div>
-
-                <!-- Auth Alert Banner -->
-                <div id="authAlertBanner" class="hidden my-4 p-4 rounded-xl bg-rose-950/40 border border-rose-800/40 text-rose-200 flex items-start space-x-3">
-                    <i class="fa-solid fa-triangle-exclamation text-rose-400 mt-1"></i>
-                    <div class="text-xs space-y-1">
-                        <strong class="font-bold text-rose-300 block text-sm">AWS Learner Lab Session Expired</strong>
-                        <p id="authErrorMsg">Your AWS Learner Lab session has timed out or needs refreshed credentials.</p>
-                        <p class="text-slate-400">To fix: Click <strong>"Start Lab"</strong> in AWS Academy, open <strong>AWS Details</strong>, and update your <code class="bg-slate-900 px-1 py-0.5 rounded text-indigo-300">AWS_SESSION_TOKEN</code> in your Render Dashboard.</p>
-                    </div>
-                </div>
-
-                <!-- Instance Details -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-6">
-                    <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
-                        <span class="text-xs text-slate-400 block mb-1">Public IP</span>
-                        <span id="ipDisplay" class="font-mono text-sm font-semibold text-emerald-400">Loading...</span>
-                    </div>
-                    <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
-                        <span class="text-xs text-slate-400 block mb-1">Instance Specs</span>
-                        <span class="font-mono text-sm font-semibold text-white">8 GB / 2 vCPU</span>
-                    </div>
-                    <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
-                        <span class="text-xs text-slate-400 block mb-1">Session Mode</span>
-                        <span id="sessionTypeDisplay" class="font-mono text-sm font-semibold text-indigo-400">Standard</span>
-                    </div>
-                    <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
-                        <span class="text-xs text-slate-400 block mb-1">Auto-Shutdown Timer</span>
-                        <span id="countdownDisplay" class="font-mono text-sm font-semibold text-slate-300">None</span>
-                    </div>
-                </div>
-
-                <!-- Student Hourly Access Box (Shown to customers) -->
-                <div id="studentPassBox" class="p-5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h4 class="text-sm font-bold text-white flex items-center space-x-2">
-                                <i class="fa-solid fa-ticket text-emerald-400"></i>
-                                <span>Redeem Hourly Access Pass</span>
-                            </h4>
-                            <p class="text-xs text-slate-400 mt-0.5">Enter your session pass code (e.g. PASS2HR) to boot the 8GB workstation.</p>
-                        </div>
-                        <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">Hourly Protection</span>
-                    </div>
-
-                    <div class="flex flex-col sm:flex-row items-center gap-3">
-                        <div class="relative flex-1 w-full">
-                            <input type="text" id="passCodeInput" placeholder="Enter code (e.g. PASS2HR)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
-                        </div>
-                        <button onclick="redeemStudentPass()" id="redeemBtn" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg shadow-emerald-600/20 transition flex items-center justify-center space-x-2">
-                            <i class="fa-solid fa-bolt text-xs"></i>
-                            <span>Start Hourly Session</span>
-                        </button>
-                    </div>
-
-                    <div class="text-[11px] text-slate-500 flex items-center space-x-1.5">
-                        <i class="fa-solid fa-shield-halved text-slate-400"></i>
-                        <span>Auto-shutdown engages automatically when your pass hours end to protect compute credits.</span>
-                    </div>
-                </div>
-
-                <!-- Running Actions (Desktop launch) -->
-                <div id="runningActions" class="hidden mt-6 p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-800/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                        <h4 class="text-sm font-semibold text-white flex items-center space-x-2">
-                            <i class="fa-solid fa-globe text-indigo-400"></i>
-                            <span>Cloud Desktop Stream Active</span>
-                        </h4>
-                        <p class="text-xs text-slate-400 mt-0.5">Stream the full Ubuntu desktop inside a browser tab with zero local RAM load.</p>
-                    </div>
-                    <button onclick="openEmbeddedDesktop()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-up-right-from-square text-xs"></i>
-                        <span>Open Desktop in Browser</span>
+                <div class="flex items-center space-x-3">
+                    <button onclick="ownerStartInstance()" id="ownerStartBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition flex items-center space-x-2">
+                        <i class="fa-solid fa-play"></i>
+                        <span>Start (Unlimited Time)</span>
+                    </button>
+                    <button onclick="ownerStopInstance()" id="ownerStopBtn" class="px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-bold transition flex items-center space-x-2">
+                        <i class="fa-solid fa-power-off"></i>
+                        <span>Stop Instance</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Right: Developer & Owner Tools -->
-            <div class="glass-card rounded-2xl p-6 flex flex-col justify-between space-y-4">
-                <div>
-                    <h3 class="text-base font-bold text-white flex items-center space-x-2">
-                        <i class="fa-solid fa-terminal text-indigo-400"></i>
-                        <span>Developer Quick Connect</span>
-                    </h3>
-                    <p class="text-xs text-slate-400 mt-1">Direct terminal & native client access commands.</p>
+            <!-- Owner Business Analytics Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div class="glass-card rounded-2xl p-5 border border-slate-800">
+                    <span class="text-xs text-slate-400 block mb-1">Total Students</span>
+                    <h4 id="statStudents" class="text-2xl font-extrabold text-white">0</h4>
                 </div>
+                <div class="glass-card rounded-2xl p-5 border border-slate-800">
+                    <span class="text-xs text-slate-400 block mb-1">Total Orders</span>
+                    <h4 id="statOrders" class="text-2xl font-extrabold text-indigo-400">0</h4>
+                </div>
+                <div class="glass-card rounded-2xl p-5 border border-slate-800">
+                    <span class="text-xs text-slate-400 block mb-1">Revenue Earned</span>
+                    <h4 id="statRevenue" class="text-2xl font-extrabold text-emerald-400">₹0</h4>
+                </div>
+                <div class="glass-card rounded-2xl p-5 border border-slate-800">
+                    <span class="text-xs text-slate-400 block mb-1">Active Session</span>
+                    <h4 id="statSession" class="text-sm font-bold text-slate-300 truncate">None</h4>
+                </div>
+            </div>
 
-                <div class="space-y-3 font-mono text-xs">
-                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
-                        <div class="flex items-center justify-between text-slate-400 mb-1">
-                            <span>SSH Shortcut</span>
-                            <button onclick="copyText('ssh cloud-desktop', this)" class="text-indigo-400 hover:text-indigo-300">
-                                <i class="fa-regular fa-copy"></i>
-                            </button>
-                        </div>
-                        <div class="text-emerald-400">ssh cloud-desktop</div>
-                    </div>
-
-                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
-                        <div class="flex items-center justify-between text-slate-400 mb-1">
-                            <span>Native TigerVNC</span>
-                            <button onclick="copyText(document.getElementById('vncCmd').innerText, this)" class="text-indigo-400 hover:text-indigo-300">
-                                <i class="fa-regular fa-copy"></i>
-                            </button>
-                        </div>
-                        <div id="vncCmd" class="text-slate-300">vncviewer 44.200.233.144:5901</div>
-                    </div>
-
-                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                        <div>
-                            <span class="text-slate-400 block text-[11px]">VNC Password</span>
-                            <span class="text-indigo-300 font-semibold">LearnerLab2026!</span>
-                        </div>
-                        <button onclick="copyText('LearnerLab2026!', this)" class="text-indigo-400 hover:text-indigo-300">
-                            <i class="fa-regular fa-copy"></i>
-                        </button>
+            <!-- Owner Manual Pass Generator -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="text-sm font-bold text-white">Offline Pass Code Generator</h4>
+                        <p class="text-xs text-slate-400">Generate a pass code to give to someone who paid you cash or UPI in person.</p>
                     </div>
                 </div>
-
-                <!-- Owner Pass Generator (Visible in Owner Mode) -->
-                <div id="ownerPassGenBox" class="hidden pt-4 border-t border-slate-800 space-y-3">
-                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider block">Student Pass Generator</span>
-                    <div class="flex items-center space-x-2">
-                        <select id="passHoursSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
-                            <option value="1">1 Hour</option>
-                            <option value="2" selected>2 Hours</option>
-                            <option value="3">3 Hours</option>
-                        </select>
-                        <button onclick="generateStudentPass()" class="flex-1 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition">Create Pass</button>
-                    </div>
-                    <div id="generatedPassResult" class="hidden text-xs font-mono bg-indigo-950/60 border border-indigo-800/40 p-2 rounded-lg text-emerald-400 flex items-center justify-between">
-                        <span id="genPassCode">CODE</span>
-                        <button onclick="copyText(document.getElementById('genPassCode').innerText, this)" class="text-indigo-300"><i class="fa-regular fa-copy"></i></button>
-                    </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <select id="genHoursSelect" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white">
+                        <option value="1">1 Hour (₹30)</option>
+                        <option value="2" selected>2 Hours (₹50)</option>
+                        <option value="3">3 Hours (₹75)</option>
+                    </select>
+                    <input type="text" id="genLabelInput" placeholder="Note (e.g. Rahul Student)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white flex-1 min-w-[150px]">
+                    <button onclick="generatePassCode()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition">Generate Code</button>
                 </div>
-
-                <div class="text-[11px] text-slate-500 pt-2 border-t border-slate-800 flex items-center space-x-1.5">
-                    <i class="fa-solid fa-shield-halved text-emerald-500"></i>
-                    <span>Hardware: 8 GB RAM / 2 vCPUs / 30 GB SSD.</span>
+                <div id="generatedPassBox" class="hidden p-3 rounded-xl bg-indigo-950/60 border border-indigo-800/40 flex items-center justify-between font-mono text-xs text-emerald-400">
+                    <span id="generatedCodeDisplay">CODE</span>
+                    <button onclick="copyText(document.getElementById('generatedCodeDisplay').innerText, this)" class="text-indigo-300 hover:text-white"><i class="fa-regular fa-copy"></i></button>
                 </div>
             </div>
         </div>
 
-        <!-- Student Hourly Pricing Plans -->
-        <div class="space-y-6 pt-4">
+        <!-- ========================================== -->
+        <!-- 2. STUDENT WORKSTATION HUB (LOGGED IN STUDENT) -->
+        <!-- ========================================== -->
+        <div id="studentSection" class="hidden space-y-6">
+            <div class="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-slate-900/90 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                        <span>Student Workstation Portal</span>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-normal">Active Account</span>
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-1">Rent 8 GB cloud RAM for your coding assignments, Android Studio builds, or ML tasks.</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="text-right">
+                        <span class="text-[11px] text-slate-400 block">Available Balance</span>
+                        <span id="studentBalanceLarge" class="text-xl font-mono font-extrabold text-emerald-400">0 Hours</span>
+                    </div>
+                    <button onclick="scrollToPricing()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition">
+                        + Buy More Hours
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Session Launcher Card -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <h4 class="text-base font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-rocket text-indigo-400"></i>
+                            <span>Launch Your Cloud Workstation</span>
+                        </h4>
+                        <p class="text-xs text-slate-400 mt-0.5">Boots an 8 GB Ubuntu workstation in AWS. Auto-shuts down when session expires to protect credits.</p>
+                    </div>
+
+                    <!-- Session Controls -->
+                    <div id="studentSessionControls" class="flex items-center space-x-3">
+                        <select id="sessionDurationSelect" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                            <option value="1">Use 1 Hour</option>
+                            <option value="2">Use 2 Hours</option>
+                            <option value="3">Use 3 Hours</option>
+                        </select>
+                        <button id="studentStartBtn" onclick="studentStartSession()" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition flex items-center space-x-2">
+                            <i class="fa-solid fa-play text-xs"></i>
+                            <span>Start Desktop</span>
+                        </button>
+                        <button id="studentStopBtn" onclick="studentStopSession()" class="hidden px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-bold transition flex items-center space-x-2">
+                            <i class="fa-solid fa-power-off text-xs"></i>
+                            <span>Stop Session Early</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live Countdown & Stream Box -->
+                <div id="studentActiveStreamBox" class="hidden p-4 rounded-xl bg-slate-900/90 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <span class="text-[11px] uppercase font-bold text-emerald-400 tracking-wider block">Session Active</span>
+                        <div class="text-xl font-mono font-bold text-white flex items-center space-x-2 mt-0.5">
+                            <span id="studentCountdownClock">--:--:--</span>
+                            <span class="text-xs text-slate-400 font-normal">(Auto-shutdown enabled)</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="openEmbeddedDesktop()" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition flex items-center space-x-2">
+                            <i class="fa-solid fa-up-right-from-square"></i>
+                            <span>Open Desktop in Browser</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Offline Code Redemption Box -->
+                <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                    <div class="text-xs text-slate-400">Have a pass code from the owner?</div>
+                    <div class="flex items-center space-x-2 w-full sm:w-auto">
+                        <input type="text" id="redeemCodeInput" placeholder="Enter code (e.g. PASS2HR)" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-mono uppercase">
+                        <button onclick="redeemPassCode()" class="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition">Redeem Code</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 3. PUBLIC VISITOR HERO (NOT LOGGED IN) -->
+        <!-- ========================================== -->
+        <div id="visitorHero" class="glass-card rounded-3xl p-8 lg:p-10 border border-slate-800 relative overflow-hidden shadow-2xl text-center space-y-6">
+            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
+                <i class="fa-solid fa-microchip"></i>
+                <span>Zero Load on Your Laptop</span>
+            </div>
+            <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight max-w-3xl mx-auto leading-tight">
+                Turn Your Slow Laptop into an <span class="bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent">8 GB Cloud Workstation</span>
+            </h1>
+            <p class="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto">
+                Stop watching your laptop hang when running Android Studio, Docker, Flutter, or PyTorch. Stream a dedicated Ubuntu cloud machine inside your browser for as low as ₹30/hour.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-4 pt-2">
+                <button onclick="openStudentAuthModal('register')" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition flex items-center space-x-2">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span>Get Started — Student Portal</span>
+                </button>
+                <button onclick="openStudentAuthModal('login')" class="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-semibold text-sm transition">
+                    Already have an account? Sign In
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 4. LIVE HARDWARE & INSTANCE MONITOR -->
+        <!-- ========================================== -->
+        <div class="glass-card rounded-2xl p-6 border border-slate-800">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">AWS Infrastructure</span>
+                    <h3 class="text-lg font-bold text-white mt-0.5 flex items-center space-x-2">
+                        <span>EC2 Workstation</span>
+                        <span id="statusBadge" class="text-xs px-2.5 py-0.5 rounded-full font-medium inline-flex items-center space-x-1.5 bg-slate-800 text-slate-400">
+                            <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                            <span>CHECKING...</span>
+                        </span>
+                    </h3>
+                </div>
+                <div class="text-xs font-mono text-slate-400">
+                    Public IP: <span id="ipDisplay" class="text-emerald-400 font-semibold">Offline</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5">
+                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
+                    <span class="text-[11px] text-slate-400 block mb-1">Cloud RAM</span>
+                    <span class="font-mono text-sm font-bold text-white">8 GB DDR4</span>
+                </div>
+                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
+                    <span class="text-[11px] text-slate-400 block mb-1">vCPUs</span>
+                    <span class="font-mono text-sm font-bold text-white">2 Xeon Cores</span>
+                </div>
+                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
+                    <span class="text-[11px] text-slate-400 block mb-1">Storage</span>
+                    <span class="font-mono text-sm font-bold text-white">30 GB NVMe</span>
+                </div>
+                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
+                    <span class="text-[11px] text-slate-400 block mb-1">Laptop RAM Load</span>
+                    <span class="font-mono text-sm font-bold text-emerald-400">0% (Thin Client)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 5. STUDENT HOURLY PRICING & BUY SECTION -->
+        <!-- ========================================== -->
+        <div id="pricingSection" class="space-y-6 pt-4">
             <div class="text-center max-w-xl mx-auto space-y-2">
                 <span class="text-xs uppercase font-bold text-emerald-400 tracking-wider">Hourly Pay-As-You-Go</span>
-                <h3 class="text-2xl font-extrabold text-white">Student Hourly Sprint Passes</h3>
-                <p class="text-sm text-slate-400">Rent high-speed cloud RAM only when you need it for assignments, builds, or training.</p>
+                <h3 class="text-2xl font-extrabold text-white">Buy Hourly Workstation Passes</h3>
+                <p class="text-sm text-slate-400">Rent high-speed cloud RAM with UPI, Google Pay, PhonePe, or Cards. No monthly subscriptions.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- 1 Hour -->
                 <div class="glass-card rounded-2xl p-6 border border-slate-800 hover:border-slate-700 transition flex flex-col justify-between">
-                    <div class="space-y-3">
-                        <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">Sprint</span>
-                        <h4 class="text-base font-bold text-white">1-Hour Quick Build</h4>
-                        <div class="flex items-baseline space-x-1"><span class="text-3xl font-extrabold text-white">₹30</span><span class="text-xs text-slate-400">/ pass</span></div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-400 font-semibold">Quick Sprint</span>
+                            <span class="text-xs text-slate-400">1 Hour</span>
+                        </div>
+                        <div class="flex items-baseline space-x-1">
+                            <span class="text-3xl font-extrabold text-white">₹30</span>
+                            <span class="text-xs text-slate-400">(~$0.35)</span>
+                        </div>
                         <ul class="space-y-2 text-xs text-slate-300">
-                            <li>• 8 GB Cloud RAM (2 vCPUs)</li>
-                            <li>• Quick assignment debugging</li>
-                            <li>• Single project build</li>
+                            <li>✓ 8 GB RAM (2 vCPUs)</li>
+                            <li>✓ Instant browser access</li>
+                            <li>✓ Quick build & assignment check</li>
                         </ul>
                     </div>
-                    <button class="mt-4 w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300">Demo Code: PASS1HR</button>
+                    <button onclick="initiatePurchase('1hr')" class="mt-6 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition">Buy 1-Hour Pass</button>
                 </div>
 
-                <div class="glass-card rounded-2xl p-6 border border-emerald-500/40 glow-brand relative flex flex-col justify-between bg-gradient-to-b from-emerald-950/10 to-slate-900/80">
-                    <div class="space-y-3">
-                        <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">Most Popular</span>
-                        <h4 class="text-base font-bold text-white">2-Hour Assignment Pack</h4>
-                        <div class="flex items-baseline space-x-1"><span class="text-3xl font-extrabold text-white">₹50</span><span class="text-xs text-slate-400">/ pass</span></div>
+                <!-- 2 Hours (Highlighted) -->
+                <div class="glass-card rounded-2xl p-6 border border-emerald-500/50 glow-brand relative flex flex-col justify-between bg-gradient-to-b from-emerald-950/20 to-slate-900/80">
+                    <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider">Most Popular</div>
+                    <div class="space-y-4 mt-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-semibold">Assignment Pack</span>
+                            <span class="text-xs text-emerald-400">2 Hours</span>
+                        </div>
+                        <div class="flex items-baseline space-x-1">
+                            <span class="text-3xl font-extrabold text-white">₹50</span>
+                            <span class="text-xs text-slate-400">(~$0.60)</span>
+                        </div>
                         <ul class="space-y-2 text-xs text-slate-200">
-                            <li>• 8 GB Cloud RAM (2 vCPUs)</li>
-                            <li>• Android Studio & Flutter compiles</li>
-                            <li>• Auto-shutdown protection</li>
+                            <li>✓ 8 GB RAM (2 vCPUs)</li>
+                            <li>✓ Full Android Studio & Flutter compile</li>
+                            <li>✓ Auto-shutdown credit protection</li>
                         </ul>
                     </div>
-                    <button class="mt-4 w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white">Demo Code: PASS2HR</button>
+                    <button onclick="initiatePurchase('2hr')" class="mt-6 w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition shadow-lg shadow-emerald-600/30">Buy 2-Hour Pass</button>
                 </div>
 
+                <!-- 3 Hours -->
                 <div class="glass-card rounded-2xl p-6 border border-slate-800 hover:border-slate-700 transition flex flex-col justify-between">
-                    <div class="space-y-3">
-                        <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">Exam Pack</span>
-                        <h4 class="text-base font-bold text-white">3-Hour Project Pack</h4>
-                        <div class="flex items-baseline space-x-1"><span class="text-3xl font-extrabold text-white">₹75</span><span class="text-xs text-slate-400">/ pass</span></div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-400 font-semibold">Project Lab</span>
+                            <span class="text-xs text-slate-400">3 Hours</span>
+                        </div>
+                        <div class="flex items-baseline space-x-1">
+                            <span class="text-3xl font-extrabold text-white">₹75</span>
+                            <span class="text-xs text-slate-400">(~$0.90)</span>
+                        </div>
                         <ul class="space-y-2 text-xs text-slate-300">
-                            <li>• 8 GB Cloud RAM (2 vCPUs)</li>
-                            <li>• Full lab practical sessions</li>
-                            <li>• PyTorch / ML data preprocessing</li>
+                            <li>✓ 8 GB RAM (2 vCPUs)</li>
+                            <li>✓ Full semester lab practical session</li>
+                            <li>✓ PyTorch & heavy dataset training</li>
                         </ul>
                     </div>
-                    <button class="mt-4 w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300">Demo Code: PASS3HR</button>
+                    <button onclick="initiatePurchase('3hr')" class="mt-6 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition">Buy 3-Hour Pass</button>
                 </div>
             </div>
         </div>
 
     </main>
 
-    <!-- Owner Key Modal -->
-    <div id="ownerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <!-- ========================================== -->
+    <!-- MODALS (STUDENT AUTH, OWNER LOGIN, PAYMENT) -->
+    <!-- ========================================== -->
+
+    <!-- Student Auth Modal (Register / Login) -->
+    <div id="studentAuthModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl p-6 max-w-md w-full border border-emerald-500/30 space-y-5">
+            <div class="flex items-center justify-between">
+                <div class="flex space-x-3">
+                    <button onclick="switchAuthTab('login')" id="tabLoginBtn" class="text-sm font-bold text-white border-b-2 border-emerald-500 pb-1">Sign In</button>
+                    <button onclick="switchAuthTab('register')" id="tabRegisterBtn" class="text-sm font-semibold text-slate-400 hover:text-white pb-1">Create Account</button>
+                </div>
+                <button onclick="closeStudentAuthModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="studentLoginForm" onsubmit="handleStudentLogin(event)" class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Email Address</label>
+                    <input type="email" id="loginEmail" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Password</label>
+                    <input type="password" id="loginPassword" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">Sign In to Student Portal</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="studentRegisterForm" onsubmit="handleStudentRegister(event)" class="hidden space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Full Name</label>
+                    <input type="text" id="regName" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Email Address</label>
+                    <input type="email" id="regEmail" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Create Password (min 6 characters)</label>
+                    <input type="password" id="regPassword" required minlength="6" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">Create Student Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Owner Login Modal -->
+    <div id="ownerLoginModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="glass-card rounded-2xl p-6 max-w-md w-full border border-indigo-500/40 space-y-4">
             <div class="flex items-center justify-between">
                 <h3 class="text-base font-bold text-white flex items-center space-x-2">
-                    <i class="fa-solid fa-crown text-indigo-400"></i>
-                    <span>Owner Private Authentication</span>
+                    <i class="fa-solid fa-lock text-indigo-400"></i>
+                    <span>Owner Authentication</span>
                 </h3>
-                <button onclick="toggleOwnerModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closeOwnerLoginModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <p class="text-xs text-slate-400">Enter your private Admin Key to access unrestricted personal controls without hourly timers.</p>
-            <input type="password" id="ownerKeyInput" placeholder="Enter Admin Key" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+            <p class="text-xs text-slate-400">Enter your secure Owner credentials to access private server controls and analytics.</p>
+            
+            <form onsubmit="handleOwnerLogin(event)" class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Owner Username</label>
+                    <input type="text" id="ownerUsernameInput" required placeholder="admin" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Password</label>
+                    <input type="password" id="ownerPasswordInput" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition">Sign In as Owner</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payment Checkout Modal -->
+    <div id="paymentModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl p-6 max-w-md w-full border border-emerald-500/40 space-y-5 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl mx-auto">
+                <i class="fa-solid fa-shield-check"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-white">Complete Your Purchase</h3>
+                <p id="checkoutPlanLabel" class="text-xs text-slate-400 mt-1">2-Hour Assignment Pack</p>
+                <div class="text-3xl font-extrabold text-white mt-2" id="checkoutAmountDisplay">₹50</div>
+            </div>
+
+            <!-- Demo UPI Simulator Box -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                <div class="text-xs text-slate-400 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-mobile-screen-button text-indigo-400"></i>
+                    <span>Instant UPI / Card Payment Simulator</span>
+                </div>
+                <div class="p-3 bg-white rounded-lg inline-block mx-auto">
+                    <!-- UPI Mock QR -->
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=clouddesk@upi&pn=CloudDesk" alt="UPI QR" class="w-24 h-24">
+                </div>
+                <p class="text-[11px] text-slate-500">Scan with GPay/PhonePe or click below to simulate instant payment verification.</p>
+            </div>
+
             <div class="flex items-center space-x-3">
-                <button onclick="submitOwnerKey()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition">Activate Owner Mode</button>
-                <button onclick="toggleOwnerModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs transition">Cancel</button>
+                <button onclick="confirmPaymentSimulation()" id="confirmPayBtn" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/20">
+                    Simulate Payment & Credit Hours
+                </button>
+                <button onclick="closePaymentModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs transition">Cancel</button>
             </div>
         </div>
     </div>
@@ -337,6 +493,10 @@
         <i class="fa-solid fa-circle-check text-emerald-400"></i>
         <span id="toastMsg">Notification</span>
     </div>
+
+    <footer class="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
+        CloudDesk Platform &copy; 2026. Built with JWT Auth, AWS EC2, and Instant Hourly Pass Engine.
+    </footer>
 
     <script src="app.js"></script>
 </body>
