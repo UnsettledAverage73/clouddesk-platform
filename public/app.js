@@ -129,13 +129,20 @@ function openEmbeddedDesktop() {
         return;
     }
 
+    const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const desktopUrl = `${proto}//${currentData.publicIp}:6080/vnc.html?autoconnect=true&resize=remote`;
+
+    // Always open directly in a new tab to bypass browser mixed-content iframe blocks
+    window.open(desktopUrl, '_blank');
+    showToast('Opening Cloud Desktop in a new window...');
+
+    // Also load into embedded container if user wants to view inline
     const container = document.getElementById('desktopContainer');
     const iframe = document.getElementById('desktopIframe');
-    
-    container.classList.remove('hidden');
-    iframe.src = `http://${currentData.publicIp}:6080/vnc.html?autoconnect=true&resize=remote`;
-    container.scrollIntoView({ behavior: 'smooth' });
-    showToast('Loading cloud desktop session...');
+    if (container && iframe) {
+        container.classList.remove('hidden');
+        iframe.src = desktopUrl;
+    }
 }
 
 function closeEmbeddedDesktop() {
