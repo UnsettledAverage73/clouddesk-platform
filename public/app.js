@@ -115,6 +115,21 @@ function updateStatusUI(data) {
     const studentStopBtn = document.getElementById('studentStopBtn');
     const studentActiveStreamBox = document.getElementById('studentActiveStreamBox');
 
+    const awsAlert = document.getElementById('awsCredentialsAlert');
+    if (awsAlert) {
+        const isAuthError = data.error && (
+            data.error.includes('not authorized') ||
+            data.error.includes('voc-cancel-cred') ||
+            data.error.includes('AuthFailure') ||
+            data.error.includes('InvalidClientTokenId')
+        );
+        if (isAuthError) {
+            awsAlert.classList.remove('hidden');
+        } else {
+            awsAlert.classList.add('hidden');
+        }
+    }
+
     if (!data.exists) {
         statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span><span>OFFLINE</span>`;
         ipDisplay.innerText = 'None';

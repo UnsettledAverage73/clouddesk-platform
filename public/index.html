@@ -118,6 +118,22 @@
                 </div>
             </div>
 
+            <!-- AWS Credentials Warning Alert -->
+            <div id="awsCredentialsAlert" class="hidden p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h5 class="text-xs font-bold text-amber-300">AWS Learner Lab Credentials Expired / Denied</h5>
+                        <p class="text-[11px] text-slate-300 mt-0.5">Your AWS temporary session has timed out. Click below to add fresh credentials from your AWS Learner Lab console.</p>
+                    </div>
+                </div>
+                <button onclick="toggleAddAwsAccountModal(true)" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition shadow">
+                    Refresh AWS Node
+                </button>
+            </div>
+
             <!-- Owner Business Analytics Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div class="glass-card rounded-2xl p-5 border border-slate-800">

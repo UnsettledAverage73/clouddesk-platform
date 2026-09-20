@@ -157,7 +157,7 @@ async function getInstanceState(targetAccount = null) {
 async function bootInstance() {
     const { client } = await getActiveEc2Client();
     const info = await getInstanceState();
-    if (!info.exists) throw new Error('Instance not found');
+    if (!info.exists) throw new Error(info.error || 'Workstation instance not found in active AWS account');
 
     if (info.state !== 'running') {
         await client.send(new StartInstancesCommand({ InstanceIds: [info.instanceId] }));
