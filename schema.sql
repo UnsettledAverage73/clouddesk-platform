@@ -74,3 +74,11 @@ CREATE TABLE IF NOT EXISTS aws_accounts (
 
 -- Index for fast lookup of idle accounts
 CREATE INDEX IF NOT EXISTS idx_aws_accounts_status ON aws_accounts (status);
+
+-- 5. Row Level Security Configuration
+-- Since CloudDesk backend interacts directly as a trusted Node.js API server,
+-- disable RLS or allow all operations so queries and transactions succeed seamlessly:
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE passes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE aws_accounts DISABLE ROW LEVEL SECURITY;
