@@ -160,6 +160,28 @@
                     <button onclick="copyText(document.getElementById('generatedCodeDisplay').innerText, this)" class="text-indigo-300 hover:text-white"><i class="fa-regular fa-copy"></i></button>
                 </div>
             </div>
+
+            <!-- AWS Multi-Account Pool & Rotator -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h4 class="text-sm font-bold text-white">AWS Multi-Account Node Pool</h4>
+                            <span id="dbProviderBadge" class="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">DB: Checking...</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Scale across multiple AWS Learner Labs. When an account expires or is occupied, switch to another node instantly.</p>
+                    </div>
+                    <button onclick="toggleAddAwsAccountModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition flex items-center space-x-2 shadow-lg shadow-emerald-600/20">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Add Learner Lab Account</span>
+                    </button>
+                </div>
+
+                <!-- AWS Account Nodes List -->
+                <div id="awsAccountsList" class="space-y-3">
+                    <p class="text-xs text-slate-500 py-3 text-center">Loading AWS nodes...</p>
+                </div>
+            </div>
         </div>
 
         <!-- ========================================== -->
@@ -487,6 +509,60 @@
                 </button>
                 <button onclick="closePaymentModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs transition">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Add AWS Account Modal -->
+    <div id="addAwsAccountModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl p-6 max-w-lg w-full border border-emerald-500/40 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                    <i class="fa-brands fa-aws text-amber-400"></i>
+                    <span>Add AWS Learner Lab Node</span>
+                </h3>
+                <button onclick="toggleAddAwsAccountModal(false)" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Paste the AWS CLI credentials from your AWS Academy / Learner Lab <span class="text-indigo-300 font-semibold">"AWS Details"</span> modal. CloudDesk will automatically extract the access key, secret key, and session token.
+            </p>
+
+            <form onsubmit="handleAddAwsAccount(event)" class="space-y-3.5">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1 font-medium">Account Label / Nickname</label>
+                    <input type="text" id="awsAccountLabelInput" placeholder="e.g. Learner Lab Node 1 (4hr)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1 font-medium">
+                        Paste AWS CLI Credentials Block <span class="text-rose-400">*</span>
+                    </label>
+                    <textarea id="awsAccountCredentialsInput" rows="5" required placeholder="[default]&#10;aws_access_key_id=ASIA...&#10;aws_secret_access_key=...&#10;aws_session_token=IQoJ..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-mono text-emerald-300 focus:outline-none focus:border-emerald-500"></textarea>
+                    <p class="text-[11px] text-slate-500 mt-1">Supports raw INI block with <code class="text-slate-400">aws_access_key_id</code>, <code class="text-slate-400">aws_secret_access_key</code>, and <code class="text-slate-400">aws_session_token</code>.</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1 font-medium">AWS Region</label>
+                        <select id="awsAccountRegionInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <option value="us-east-1" selected>us-east-1 (N. Virginia)</option>
+                            <option value="us-west-2">us-west-2 (Oregon)</option>
+                            <option value="ap-south-1">ap-south-1 (Mumbai)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1 font-medium">EC2 Tag:Name</label>
+                        <input type="text" id="awsAccountTagInput" value="CloudDesktop" placeholder="CloudDesktop" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex items-center space-x-3">
+                    <button type="submit" id="addAwsAccountSubmitBtn" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/20 flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Save Node to Pool</span>
+                    </button>
+                    <button type="button" onclick="toggleAddAwsAccountModal(false)" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
 

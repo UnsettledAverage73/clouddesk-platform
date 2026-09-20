@@ -13,6 +13,7 @@
   "type": "commonjs",
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.1136.0",
+    "@supabase/supabase-js": "^2.116.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^18.0.1",

@@ -30,8 +30,60 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize AWS EC2 Client
-const ec2Client = new EC2Client({ region: REGION });
+// Active AWS Node / Account ID in pool
+let activeAccountId = null;
+
+// Helper: Get active or specific EC2 client
+async function getActiveEc2Client(targetAccount = null) {
+    if (targetAccount) {
+        return {
+            client: new EC2Client({
+                region: targetAccount.region || REGION,
+                credentials: {
+                    accessKeyId: targetAccount.accessKeyId,
+                    secretAccessKey: targetAccount.secretAccessKey,
+                    sessionToken: targetAccount.sessionToken
+                }
+            }),
+            account: targetAccount,
+            instanceTag: targetAccount.instanceTag || INSTANCE_TAG,
+            region: targetAccount.region || REGION
+        };
+    }
+
+    const accounts = await db.getAwsAccounts();
+    let account = null;
+    if (activeAccountId) {
+        account = accounts.find(a => a.id === activeAccountId);
+    }
+    if (!account && accounts.length > 0) {
+        account = await db.getAvailableAwsAccount();
+    }
+
+    if (account && account.accessKeyId && account.secretAccessKey) {
+        return {
+            client: new EC2Client({
+                region: account.region || REGION,
+                credentials: {
+                    accessKeyId: account.accessKeyId,
+                    secretAccessKey: account.secretAccessKey,
+                    sessionToken: account.sessionToken
+                }
+            }),
+            account: account,
+            instanceTag: account.instanceTag || INSTANCE_TAG,
+            region: account.region || REGION
+        };
+    }
+
+    // Default to system / environment credentials
+    return {
+        client: new EC2Client({ region: REGION }),
+        account: null,
+        instanceTag: INSTANCE_TAG,
+        region: REGION
+    };
+}
 
 // Initialize Razorpay Client with credentials
 const razorpay = new Razorpay({
@@ -59,21 +111,22 @@ const PLANS = {
 };
 
 // Helper: Query AWS Instance State
-async function getInstanceState() {
+async function getInstanceState(targetAccount = null) {
     try {
+        const { client, account, instanceTag } = await getActiveEc2Client(targetAccount);
         const command = new DescribeInstancesCommand({
             Filters: [
-                { Name: 'tag:Name', Values: [INSTANCE_TAG] },
+                { Name: 'tag:Name', Values: [instanceTag] },
                 { Name: 'instance-state-name', Values: ['pending', 'running', 'shutting-down', 'stopped', 'stopping'] }
             ]
         });
 
-        const response = await ec2Client.send(command);
+        const response = await client.send(command);
         const reservation = response.Reservations && response.Reservations[0];
         const instance = reservation && reservation.Instances && reservation.Instances[0];
 
         if (!instance) {
-            return { exists: false, status: 'not_found' };
+            return { exists: false, status: 'not_found', accountLabel: account?.label || 'Default' };
         }
 
         return {
@@ -83,6 +136,7 @@ async function getInstanceState() {
             publicIp: instance.PublicIpAddress || null,
             instanceType: instance.InstanceType || 't3.large',
             launchTime: instance.LaunchTime || null,
+            accountLabel: account?.label || 'Default Node',
             specs: {
                 vCPU: 2,
                 ram: '8 GB',
@@ -101,11 +155,12 @@ async function getInstanceState() {
 
 // Helper: Boot Instance
 async function bootInstance() {
+    const { client } = await getActiveEc2Client();
     const info = await getInstanceState();
     if (!info.exists) throw new Error('Instance not found');
 
     if (info.state !== 'running') {
-        await ec2Client.send(new StartInstancesCommand({ InstanceIds: [info.instanceId] }));
+        await client.send(new StartInstancesCommand({ InstanceIds: [info.instanceId] }));
     }
 
     let newIp = info.publicIp;
@@ -123,9 +178,10 @@ async function bootInstance() {
 
 // Helper: Shutdown Instance
 async function shutdownInstance() {
+    const { client } = await getActiveEc2Client();
     const info = await getInstanceState();
     if (info.exists && info.state === 'running') {
-        await ec2Client.send(new StopInstancesCommand({ InstanceIds: [info.instanceId] }));
+        await client.send(new StopInstancesCommand({ InstanceIds: [info.instanceId] }));
     }
 }
 
@@ -218,7 +274,7 @@ app.post('/api/auth/owner-login', (req, res) => {
 });
 
 // Student Register
-app.post('/api/auth/student-register', (req, res) => {
+app.post('/api/auth/student-register', async (req, res) => {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
@@ -229,13 +285,13 @@ app.post('/api/auth/student-register', (req, res) => {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const existing = db.findUserByEmail(email);
+    const existing = await db.findUserByEmail(email);
     if (existing) {
         return res.status(409).json({ error: 'An account with this email already exists' });
     }
 
     const hashedPassword = bcrypt.hashSync(password, 10);
-    const user = db.createUser({
+    const user = await db.createUser({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         password: hashedPassword,
@@ -256,14 +312,14 @@ app.post('/api/auth/student-register', (req, res) => {
 });
 
 // Student Login
-app.post('/api/auth/student-login', (req, res) => {
+app.post('/api/auth/student-login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = db.findUserByEmail(email);
+    const user = await db.findUserByEmail(email);
     if (!user) {
         return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -287,7 +343,7 @@ app.post('/api/auth/student-login', (req, res) => {
 });
 
 // Get Current User Profile (Owner or Student)
-app.get('/api/auth/me', authenticateToken, (req, res) => {
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
     if (req.user.role === 'owner') {
         return res.json({
             role: 'owner',
@@ -296,7 +352,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
         });
     }
 
-    const user = db.findUserById(req.user.id);
+    const user = await db.findUserById(req.user.id);
     if (!user) {
         return res.status(404).json({ error: 'User profile not found' });
     }
@@ -369,7 +425,7 @@ app.post(['/api/create-order', '/api/payment/create-order'], async (req, res) =>
         const rzOrder = await razorpay.orders.create(orderOptions);
 
         // Record order in database
-        db.createOrder({
+        await db.createOrder({
             id: rzOrder.id,
             userId: userId,
             userEmail: userEmail,
@@ -435,14 +491,14 @@ app.post(['/api/verify-payment', '/api/payment/verify'], async (req, res) => {
         }
 
         // Find and update the order
-        const orders = db.getOrders();
+        const orders = await db.getOrders();
         const order = orders.find(o => o.razorpayOrderId === effectiveOrderId || o.id === effectiveOrderId);
 
         let hoursCredited = 0;
         let newBalance = null;
 
         if (order) {
-            db.updateOrder(order.id, {
+            await db.updateOrder(order.id, {
                 status: 'completed',
                 razorpayPaymentId: razorpay_payment_id,
                 razorpaySignature: razorpay_signature,
@@ -451,11 +507,11 @@ app.post(['/api/verify-payment', '/api/payment/verify'], async (req, res) => {
 
             // Credit hours to student account if user exists
             if (order.userId) {
-                const user = db.findUserById(order.userId);
+                const user = await db.findUserById(order.userId);
                 if (user) {
                     hoursCredited = order.hours || (planId && PLANS[planId] ? PLANS[planId].hours : 0);
                     newBalance = (user.hoursBalance || 0) + hoursCredited;
-                    db.updateUser(user.id, { hoursBalance: newBalance });
+                    await db.updateUser(user.id, { hoursBalance: newBalance });
                 }
             }
         } else if (planId && PLANS[planId]) {
@@ -480,21 +536,22 @@ app.post(['/api/verify-payment', '/api/payment/verify'], async (req, res) => {
 });
 
 // Redeem Pass Code (For students who bought a code offline or in person)
-app.post('/api/student/redeem-code', authenticateToken, requireStudent, (req, res) => {
+app.post('/api/student/redeem-code', authenticateToken, requireStudent, async (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Code is required' });
 
     const cleanCode = code.trim().toUpperCase();
-    const pass = db.getPasses().find(p => p.code.toUpperCase() === cleanCode);
+    const passes = await db.getPasses();
+    const pass = passes.find(p => p.code.toUpperCase() === cleanCode);
 
     if (!pass) return res.status(401).json({ error: 'Invalid pass code' });
     if (pass.used) return res.status(403).json({ error: 'This pass code has already been used' });
 
-    const user = db.findUserById(req.user.id);
+    const user = await db.findUserById(req.user.id);
     const newBalance = (user.hoursBalance || 0) + pass.hours;
 
-    db.updateUser(user.id, { hoursBalance: newBalance });
-    db.updatePass(cleanCode, { used: true, redeemedBy: user.email, redeemedAt: new Date().toISOString() });
+    await db.updateUser(user.id, { hoursBalance: newBalance });
+    await db.updatePass(cleanCode, { used: true, redeemedBy: user.email, redeemedAt: new Date().toISOString() });
 
     res.json({
         success: true,
@@ -513,7 +570,7 @@ app.post('/api/student/start-session', authenticateToken, requireStudent, async 
     const { hours = 1 } = req.body;
     const requestedHours = Math.max(1, parseInt(hours));
 
-    const user = db.findUserById(req.user.id);
+    const user = await db.findUserById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User profile not found' });
 
     if ((user.hoursBalance || 0) < requestedHours) {
@@ -529,7 +586,7 @@ app.post('/api/student/start-session', authenticateToken, requireStudent, async 
 
         // Deduct hours from student
         const newBalance = user.hoursBalance - requestedHours;
-        db.updateUser(user.id, { hoursBalance: newBalance });
+        await db.updateUser(user.id, { hoursBalance: newBalance });
 
         const durationMs = requestedHours * 3600 * 1000;
         const expiresAt = Date.now() + durationMs;
@@ -636,10 +693,11 @@ app.post('/api/owner/stop', authenticateToken, requireOwner, async (req, res) =>
 });
 
 // Owner Analytics & Data
-app.get('/api/owner/analytics', authenticateToken, requireOwner, (req, res) => {
-    const users = db.getUsers();
-    const orders = db.getOrders();
-    const passes = db.getPasses();
+app.get('/api/owner/analytics', authenticateToken, requireOwner, async (req, res) => {
+    const users = await db.getUsers();
+    const orders = await db.getOrders();
+    const passes = await db.getPasses();
+    const awsAccounts = await db.getAwsAccounts();
 
     const completedOrders = orders.filter(o => o.status === 'completed');
     const totalRevenueInr = completedOrders.reduce((acc, curr) => acc + (curr.amountInr || 0), 0);
@@ -649,6 +707,8 @@ app.get('/api/owner/analytics', authenticateToken, requireOwner, (req, res) => {
             totalStudents: users.length,
             totalOrders: completedOrders.length,
             totalRevenueInr: totalRevenueInr,
+            dbProvider: db.isSupabaseConfigured ? 'supabase' : 'local_json',
+            activeAwsNodes: awsAccounts.length,
             activeSession: {
                 isActive: activeSession.isActive,
                 type: activeSession.type,
@@ -657,17 +717,24 @@ app.get('/api/owner/analytics', authenticateToken, requireOwner, (req, res) => {
             }
         },
         recentOrders: orders.slice(-10).reverse(),
-        passes: passes
+        passes: passes,
+        awsAccounts: awsAccounts.map(a => ({
+            id: a.id,
+            label: a.label,
+            region: a.region,
+            status: a.status,
+            isActive: a.id === activeAccountId
+        }))
     });
 });
 
 // Owner Generate Pass Code
-app.post('/api/owner/generate-pass', authenticateToken, requireOwner, (req, res) => {
+app.post('/api/owner/generate-pass', authenticateToken, requireOwner, async (req, res) => {
     const { hours = 2, label = 'Student Pass' } = req.body;
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     const code = `PASS-${hours}H-${randomSuffix}`;
 
-    const newPass = db.createPass({
+    const newPass = await db.createPass({
         code: code,
         hours: parseInt(hours),
         used: false,
@@ -680,6 +747,105 @@ app.post('/api/owner/generate-pass', authenticateToken, requireOwner, (req, res)
         code: newPass.code,
         hours: newPass.hours,
         label: newPass.label
+    });
+});
+
+// ==========================================
+// 6. AWS MULTI-ACCOUNT POOL (LEARNER LABS)
+// ==========================================
+
+// Get All AWS Accounts
+app.get('/api/owner/aws-accounts', authenticateToken, requireOwner, async (req, res) => {
+    const accounts = await db.getAwsAccounts();
+    res.json({
+        accounts: accounts.map(a => ({
+            id: a.id,
+            label: a.label,
+            region: a.region,
+            status: a.status,
+            isActive: a.id === activeAccountId,
+            hasToken: Boolean(a.sessionToken),
+            expiresAt: a.expiresAt,
+            createdAt: a.createdAt
+        })),
+        activeAccountId: activeAccountId
+    });
+});
+
+// Add / Update AWS Account from Learner Lab Credentials Block
+app.post('/api/owner/aws-accounts', authenticateToken, requireOwner, async (req, res) => {
+    try {
+        const { label, credentialsText, accessKeyId, secretAccessKey, sessionToken, region = 'us-east-1', instanceTag } = req.body;
+
+        let parsedAccessKey = accessKeyId;
+        let parsedSecretKey = secretAccessKey;
+        let parsedToken = sessionToken;
+
+        // Auto-parse if pasted as raw credentials block from AWS Learner Lab
+        if (credentialsText) {
+            const keyMatch = credentialsText.match(/aws_access_key_id\s*=\s*([^\s\r\n]+)/i);
+            const secretMatch = credentialsText.match(/aws_secret_access_key\s*=\s*([^\s\r\n]+)/i);
+            const tokenMatch = credentialsText.match(/aws_session_token\s*=\s*([^\s\r\n]+)/i);
+
+            if (keyMatch) parsedAccessKey = keyMatch[1];
+            if (secretMatch) parsedSecretKey = secretMatch[1];
+            if (tokenMatch) parsedToken = tokenMatch[1];
+        }
+
+        if (!parsedAccessKey || !parsedSecretKey) {
+            return res.status(400).json({ error: 'AWS Access Key ID and Secret Access Key are required' });
+        }
+
+        const account = await db.saveAwsAccount({
+            label: label || `Learner Lab Node (${parsedAccessKey.slice(-4)})`,
+            accessKeyId: parsedAccessKey,
+            secretAccessKey: parsedSecretKey,
+            sessionToken: parsedToken,
+            region: region,
+            instanceTag: instanceTag || INSTANCE_TAG,
+            status: 'idle',
+            expiresAt: new Date(Date.now() + 4 * 3600 * 1000).toISOString()
+        });
+
+        if (!activeAccountId) {
+            activeAccountId = account.id;
+        }
+
+        res.json({
+            success: true,
+            message: `AWS Account node "${account.label}" saved to pool!`,
+            account: { id: account.id, label: account.label }
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Switch Active AWS Node
+app.post('/api/owner/aws-accounts/set-active/:id', authenticateToken, requireOwner, async (req, res) => {
+    const { id } = req.params;
+    const accounts = await db.getAwsAccounts();
+    const target = accounts.find(a => a.id === id);
+    if (!target) return res.status(404).json({ error: 'AWS account not found' });
+
+    activeAccountId = id;
+    res.json({ success: true, message: `Switched active workstation node to "${target.label}"` });
+});
+
+// Remove Account from Pool
+app.delete('/api/owner/aws-accounts/:id', authenticateToken, requireOwner, async (req, res) => {
+    await db.deleteAwsAccount(req.params.id);
+    if (activeAccountId === req.params.id) {
+        activeAccountId = null;
+    }
+    res.json({ success: true, message: 'Account removed from pool' });
+});
+
+// Database & System Status Endpoint
+app.get('/api/db/status', (req, res) => {
+    res.json({
+        provider: db.isSupabaseConfigured ? 'supabase' : 'local_json',
+        isCloudPersistent: db.isSupabaseConfigured
     });
 });
 

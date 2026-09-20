@@ -20,6 +20,7 @@ function removeToken() {
 async function initApp() {
     await checkAuth();
     await fetchEc2Status();
+    await fetchDbStatus();
     setInterval(fetchEc2Status, 10000);
 }
 
@@ -499,6 +500,10 @@ async function fetchOwnerAnalytics() {
         } else {
             document.getElementById('statSession').innerText = 'None';
         }
+
+        // Also refresh AWS nodes and DB status for owner
+        fetchAwsAccounts();
+        fetchDbStatus();
     } catch (err) {
         console.error('Analytics error:', err);
     }
@@ -526,6 +531,207 @@ async function generatePassCode() {
         fetchOwnerAnalytics();
     } catch (err) {
         showToast('Error: ' + err.message);
+    }
+}
+
+// ==========================================
+// AWS MULTI-ACCOUNT NODE POOL (LEARNER LABS)
+// ==========================================
+
+async function fetchDbStatus() {
+    try {
+        const res = await fetch('/api/db/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        const badge = document.getElementById('dbProviderBadge');
+        if (!badge) return;
+
+        if (data.provider === 'supabase') {
+            badge.className = 'text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono border border-emerald-500/30';
+            badge.innerHTML = '<i class="fa-solid fa-cloud text-emerald-400 mr-1"></i>DB: Supabase (Persistent)';
+        } else {
+            badge.className = 'text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono border border-amber-500/30';
+            badge.innerHTML = '<i class="fa-solid fa-database text-amber-400 mr-1"></i>DB: Local JSON (Fallback)';
+        }
+    } catch (e) {
+        console.error('DB status check error:', e);
+    }
+}
+
+async function fetchAwsAccounts() {
+    const token = getToken();
+    if (!token || !currentUser || currentUser.role !== 'owner') return;
+
+    try {
+        const res = await fetch('/api/owner/aws-accounts', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        renderAwsAccountsList(data.accounts, data.activeAccountId);
+    } catch (e) {
+        console.error('Error fetching AWS accounts:', e);
+    }
+}
+
+function renderAwsAccountsList(accounts = [], activeAccountId = null) {
+    const container = document.getElementById('awsAccountsList');
+    if (!container) return;
+
+    if (!accounts || accounts.length === 0) {
+        container.innerHTML = `
+            <div class="p-6 rounded-xl bg-slate-900/60 border border-dashed border-slate-800 text-center space-y-2.5">
+                <div class="w-10 h-10 rounded-xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto text-base">
+                    <i class="fa-brands fa-aws"></i>
+                </div>
+                <h5 class="text-xs font-semibold text-slate-300">No AWS Learner Lab Accounts in Pool</h5>
+                <p class="text-[11px] text-slate-500 max-w-sm mx-auto">
+                    Learner Labs expire every 4 hours. Add 1, 2, or more accounts to switch nodes instantly with zero downtime.
+                </p>
+                <button onclick="toggleAddAwsAccountModal(true)" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition inline-flex items-center space-x-1.5">
+                    <i class="fa-solid fa-plus text-[10px]"></i>
+                    <span>Add First Node</span>
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    accounts.forEach(acc => {
+        const isActive = acc.isActive;
+        const hasToken = acc.hasToken;
+
+        html += `
+            <div class="p-4 rounded-xl ${isActive ? 'bg-indigo-950/40 border-indigo-500/50 shadow-lg shadow-indigo-950/30' : 'bg-slate-900/60 border-slate-800'} border flex flex-wrap items-center justify-between gap-3 transition">
+                <div class="flex items-center space-x-3 min-w-[220px]">
+                    <div class="w-9 h-9 rounded-xl ${isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-sm font-bold">
+                        <i class="fa-brands fa-aws"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h5 class="text-xs font-bold text-white">${acc.label}</h5>
+                            ${isActive ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold uppercase tracking-wider">Serving Active Workstation</span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-0.5 flex items-center space-x-2 font-mono">
+                            <span>${acc.region}</span>
+                            <span>&bull;</span>
+                            <span>${hasToken ? 'Learner Lab Session Token' : 'IAM User'}</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    ${!isActive ? `
+                        <button onclick="setActiveAwsAccount('${acc.id}')" class="px-3 py-1.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white text-[11px] font-semibold transition flex items-center space-x-1.5 shadow">
+                            <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
+                            <span>Set as Active Node</span>
+                        </button>
+                    ` : `
+                        <span class="text-[11px] text-emerald-400 font-semibold flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Active Route</span>
+                        </span>
+                    `}
+                    <button onclick="deleteAwsAccount('${acc.id}', '${acc.label.replace(/'/g, "\\'")}')" class="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition" title="Remove node">
+                        <i class="fa-regular fa-trash-can text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+async function handleAddAwsAccount(e) {
+    e.preventDefault();
+    const submitBtn = document.getElementById('addAwsAccountSubmitBtn');
+    const label = document.getElementById('awsAccountLabelInput').value.trim();
+    const credentialsText = document.getElementById('awsAccountCredentialsInput').value.trim();
+    const region = document.getElementById('awsAccountRegionInput').value;
+    const instanceTag = document.getElementById('awsAccountTagInput').value.trim() || 'CloudDesktop';
+
+    if (!credentialsText) {
+        showToast('Please paste the AWS credentials block');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Saving Node...</span>`;
+
+    try {
+        const res = await fetch('/api/owner/aws-accounts', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ label, credentialsText, region, instanceTag })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save AWS account');
+
+        showToast(data.message || 'AWS Node added to pool!');
+        document.getElementById('awsAccountLabelInput').value = '';
+        document.getElementById('awsAccountCredentialsInput').value = '';
+        toggleAddAwsAccountModal(false);
+        await fetchAwsAccounts();
+        await fetchEc2Status();
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-plus"></i><span>Save Node to Pool</span>`;
+    }
+}
+
+async function setActiveAwsAccount(id) {
+    showToast('Switching active AWS node...');
+    try {
+        const res = await fetch(`/api/owner/aws-accounts/set-active/${id}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to switch node');
+
+        showToast(data.message || 'Switched active node');
+        await fetchAwsAccounts();
+        await fetchEc2Status();
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    }
+}
+
+async function deleteAwsAccount(id, label) {
+    if (!confirm(`Are you sure you want to remove "${label || 'this AWS node'}" from the pool?`)) return;
+
+    try {
+        const res = await fetch(`/api/owner/aws-accounts/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete node');
+
+        showToast(data.message || 'Account removed from pool');
+        await fetchAwsAccounts();
+        await fetchEc2Status();
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    }
+}
+
+function toggleAddAwsAccountModal(show = null) {
+    const modal = document.getElementById('addAwsAccountModal');
+    if (!modal) return;
+    if (show === true) {
+        modal.classList.remove('hidden');
+    } else if (show === false) {
+        modal.classList.add('hidden');
+    } else {
+        modal.classList.toggle('hidden');
     }
 }
 

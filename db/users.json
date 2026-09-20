@@ -5,6 +5,7 @@
     "hoursBalance": 2,
     "name": "Student Rahul",
     "email": "rahul@test.com",
+    "phone": "9876543210",
     "password": "$2b$10$UvYSgimlo1.xJ11EIwghV.6tcoxyo4yMLhwUWCEVnF9Jc9Zon3Ory"
   }
 ]
