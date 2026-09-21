@@ -637,29 +637,29 @@ function renderAwsAccountsList(accounts = [], activeAccountId = null) {
         const hasToken = acc.hasToken;
 
         html += `
-            <div class="p-4 rounded-xl ${isActive ? 'bg-indigo-950/40 border-indigo-500/50 shadow-lg shadow-indigo-950/30' : 'bg-slate-900/60 border-slate-800'} border flex flex-wrap items-center justify-between gap-3 transition">
-                <div class="flex items-center space-x-3 min-w-[220px]">
-                    <div class="w-9 h-9 rounded-xl ${isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-sm font-bold">
+            <div class="p-3.5 sm:p-4 rounded-xl ${isActive ? 'bg-indigo-950/40 border-indigo-500/50 shadow-lg shadow-indigo-950/30' : 'bg-slate-900/60 border-slate-800'} border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition">
+                <div class="flex items-center space-x-3 w-full sm:w-auto min-w-0">
+                    <div class="w-9 h-9 rounded-xl ${isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-sm font-bold shrink-0">
                         <i class="fa-brands fa-aws"></i>
                     </div>
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <h5 class="text-xs font-bold text-white">${acc.label}</h5>
-                            ${isActive ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold uppercase tracking-wider">Serving Active Workstation</span>' : ''}
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <h5 class="text-xs font-bold text-white truncate">${acc.label}</h5>
+                            ${isActive ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold uppercase tracking-wider shrink-0">Active Route</span>' : ''}
                         </div>
-                        <p class="text-[11px] text-slate-400 mt-0.5 flex items-center space-x-2 font-mono">
+                        <p class="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-1.5 font-mono">
                             <span>${acc.region}</span>
                             <span>&bull;</span>
-                            <span>${hasToken ? 'Learner Lab Session Token' : 'IAM User'}</span>
+                            <span>${hasToken ? 'Learner Lab' : 'IAM'}</span>
                         </p>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 w-full sm:w-auto justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
                     ${!isActive ? `
-                        <button onclick="setActiveAwsAccount('${acc.id}')" class="px-3 py-1.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white text-[11px] font-semibold transition flex items-center space-x-1.5 shadow">
+                        <button onclick="setActiveAwsAccount('${acc.id}')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white text-[11px] font-semibold transition flex items-center justify-center space-x-1.5 shadow">
                             <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
-                            <span>Set as Active Node</span>
+                            <span>Set as Active</span>
                         </button>
                     ` : `
                         <span class="text-[11px] text-emerald-400 font-semibold flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
@@ -667,7 +667,7 @@ function renderAwsAccountsList(accounts = [], activeAccountId = null) {
                             <span>Active Route</span>
                         </span>
                     `}
-                    <button onclick="deleteAwsAccount('${acc.id}', '${acc.label.replace(/'/g, "\\'")}')" class="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition" title="Remove node">
+                    <button onclick="deleteAwsAccount('${acc.id}', '${acc.label.replace(/'/g, "\\'")}')" class="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition shrink-0" title="Remove node">
                         <i class="fa-regular fa-trash-can text-xs"></i>
                     </button>
                 </div>
