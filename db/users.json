@@ -15,5 +15,14 @@
     "name": "Atharva Student",
     "email": "atharva@test.com",
     "password": "$2b$10$6NQsYlUHQI.hvQLXWYC/.eNZK4kbsSpoMbCdysncxqpxgvvVyo35W"
+  },
+  {
+    "id": "usr_thaog0s",
+    "createdAt": "2026-09-21T11:32:59.139Z",
+    "hoursBalance": 0,
+    "name": "Razorpay Reviewer",
+    "email": "reviewer@clouddesk.live",
+    "phone": "9637843011",
+    "password": "$2b$10$iRT8pNF7TIaUprTnxP6LreCtq2oL9FowOrUgGGerDAP.a.3Vwiqnm"
   }
 ]
