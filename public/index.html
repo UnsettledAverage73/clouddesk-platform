@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudDesk — Cloud Workstation Platform</title>
+    <title>CloudDesk — Virtual Computer Science Lab & Remote Coding Platform for Students</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/css/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -28,14 +28,14 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-                    <i class="fa-solid fa-desktop text-lg"></i>
+                    <i class="fa-solid fa-graduation-cap text-lg"></i>
                 </div>
                 <div>
                     <div class="flex items-center space-x-2">
                         <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">CloudDesk</span>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Cloud RAM on Demand</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">EdTech Coding Lab</span>
                     </div>
-                    <p class="text-xs text-slate-400">8 GB Ubuntu Workstations for Students</p>
+                    <p class="text-xs text-slate-400">Virtual Computer Science Lab for Students</p>
                 </div>
             </div>
 
@@ -271,19 +271,19 @@
         <!-- ========================================== -->
         <div id="visitorHero" class="glass-card rounded-3xl p-8 lg:p-10 border border-slate-800 relative overflow-hidden shadow-2xl text-center space-y-6">
             <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
-                <i class="fa-solid fa-microchip"></i>
-                <span>Zero Load on Your Laptop</span>
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span>Virtual Computer Science Lab for Students</span>
             </div>
             <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight max-w-3xl mx-auto leading-tight">
-                Turn Your Slow Laptop into an <span class="bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent">8 GB Cloud Workstation</span>
+                Turn Your Slow Laptop into a <span class="bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent">Virtual Coding Lab</span>
             </h1>
             <p class="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto">
-                Stop watching your laptop hang when running Android Studio, Docker, Flutter, or PyTorch. Stream a dedicated Ubuntu cloud machine inside your browser for as low as ₹30/hour.
+                Practice programming assignments, compile Android Studio, Flutter, PyTorch, C++, and Docker directly inside your browser. No overheating, zero battery drain on your laptop.
             </p>
             <div class="flex flex-wrap items-center justify-center gap-4 pt-2">
                 <button onclick="openStudentAuthModal('register')" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition flex items-center space-x-2">
                     <i class="fa-solid fa-graduation-cap"></i>
-                    <span>Get Started — Student Portal</span>
+                    <span>Get Started — Student Lab Portal</span>
                 </button>
                 <button onclick="openStudentAuthModal('login')" class="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-semibold text-sm transition">
                     Already have an account? Sign In
@@ -297,9 +297,9 @@
         <div class="glass-card rounded-2xl p-6 border border-slate-800">
             <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">AWS Infrastructure</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Virtual Lab Environment</span>
                     <h3 class="text-lg font-bold text-white mt-0.5 flex items-center space-x-2">
-                        <span>EC2 Workstation</span>
+                        <span>Interactive Ubuntu Lab Instance</span>
                         <span id="statusBadge" class="text-xs px-2.5 py-0.5 rounded-full font-medium inline-flex items-center space-x-1.5 bg-slate-800 text-slate-400">
                             <span class="w-2 h-2 rounded-full bg-slate-500"></span>
                             <span>CHECKING...</span>
@@ -313,22 +313,27 @@
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5">
                 <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
-                    <span class="text-[11px] text-slate-400 block mb-1">Cloud RAM</span>
+                    <span class="text-[11px] text-slate-400 block mb-1">Compute RAM</span>
                     <span class="font-mono text-sm font-bold text-white">8 GB DDR4</span>
                 </div>
                 <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
-                    <span class="text-[11px] text-slate-400 block mb-1">vCPUs</span>
-                    <span class="font-mono text-sm font-bold text-white">2 Xeon Cores</span>
+                    <span class="text-[11px] text-slate-400 block mb-1">Compiler Cores</span>
+                    <span class="font-mono text-sm font-bold text-white">2 Xeon vCPUs</span>
                 </div>
                 <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
-                    <span class="text-[11px] text-slate-400 block mb-1">Storage</span>
-                    <span class="font-mono text-sm font-bold text-white">30 GB NVMe</span>
+                    <span class="text-[11px] text-slate-400 block mb-1">Lab Scratchpad</span>
+                    <span class="font-mono text-sm font-bold text-white">30 GB (Temporary Code)</span>
                 </div>
                 <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80">
                     <span class="text-[11px] text-slate-400 block mb-1">Laptop RAM Load</span>
-                    <span class="font-mono text-sm font-bold text-emerald-400">0% (Thin Client)</span>
+                    <span class="font-mono text-sm font-bold text-emerald-400">0% (In-Browser)</span>
                 </div>
             </div>
+
+            <p class="text-[11px] text-slate-500 mt-4 text-center">
+                <i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i>
+                CloudDesk provides educational programming runtime environments. <strong>CloudDesk is strictly an educational coding lab and does NOT provide cloud storage, file sharing, or cyberlocker services.</strong>
+            </p>
         </div>
 
         <!-- ========================================== -->
@@ -336,9 +341,9 @@
         <!-- ========================================== -->
         <div id="pricingSection" class="space-y-6 pt-4">
             <div class="text-center max-w-xl mx-auto space-y-2">
-                <span class="text-xs uppercase font-bold text-emerald-400 tracking-wider">Hourly Pay-As-You-Go</span>
-                <h3 class="text-2xl font-extrabold text-white">Buy Hourly Workstation Passes</h3>
-                <p class="text-sm text-slate-400">Rent high-speed cloud RAM with UPI, Google Pay, PhonePe, or Cards. No monthly subscriptions.</p>
+                <span class="text-xs uppercase font-bold text-emerald-400 tracking-wider">Educational Lab Passes</span>
+                <h3 class="text-2xl font-extrabold text-white">Buy Hourly Coding Lab Passes</h3>
+                <p class="text-sm text-slate-400">Interactive programming runtime passes for students. Pay with UPI, Google Pay, PhonePe, or Cards. No subscriptions.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -575,8 +580,9 @@
     </div>
 
     <footer class="border-t border-slate-900 py-8 text-center text-xs text-slate-500 space-y-2">
-        <p>CloudDesk Platform &copy; 2026. Built with JWT Auth, AWS EC2, and Instant Hourly Pass Engine.</p>
-        <div class="flex items-center justify-center space-x-4 text-slate-400">
+        <p>CloudDesk EdTech Platform &copy; 2026. Browser-based virtual computer science laboratory for student programming practice.</p>
+        <p class="text-[11px] text-slate-600">Educational software & virtual runtime lab. CloudDesk is NOT a cloud storage, file hosting, or backup hosting provider.</p>
+        <div class="flex items-center justify-center space-x-4 text-slate-400 pt-2">
             <a href="/terms.html" class="hover:text-white hover:underline transition">Terms & Conditions</a>
             <span>&bull;</span>
             <a href="/privacy.html" class="hover:text-white hover:underline transition">Privacy Policy</a>
