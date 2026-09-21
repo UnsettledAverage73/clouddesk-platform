@@ -29,8 +29,8 @@ const INSTANCE_TAG = process.env.INSTANCE_TAG || 'AWS-Cloud-Desktop';
 const JWT_SECRET = process.env.JWT_SECRET || 'clouddesk-secret-jwt-key-2026-secure';
 
 // Owner credentials (defaults for first login, customizable via ENV)
-const OWNER_USERNAME = process.env.OWNER_USERNAME || 'admin';
-const OWNER_PASSWORD = process.env.OWNER_PASSWORD || 'atharva2026';
+const OWNER_USERNAME = process.env.OWNER_USERNAME || 'unsettledaverage73';
+const OWNER_PASSWORD = process.env.OWNER_PASSWORD || 'average@12';
 
 app.use(cors());
 app.use(express.json());
