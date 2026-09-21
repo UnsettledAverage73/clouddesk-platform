@@ -16,6 +16,12 @@ const {
 
 const db = require('./db');
 
+// Sanitize credentials to prevent invalid characters (\r, \n, whitespace) in AWS HTTP headers
+const cleanCred = (val) => (typeof val === 'string' ? val.trim().replace(/[\r\n\t]/g, '') : val);
+if (process.env.AWS_SESSION_TOKEN) process.env.AWS_SESSION_TOKEN = cleanCred(process.env.AWS_SESSION_TOKEN);
+if (process.env.AWS_ACCESS_KEY_ID) process.env.AWS_ACCESS_KEY_ID = cleanCred(process.env.AWS_ACCESS_KEY_ID);
+if (process.env.AWS_SECRET_ACCESS_KEY) process.env.AWS_SECRET_ACCESS_KEY = cleanCred(process.env.AWS_SECRET_ACCESS_KEY);
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const REGION = process.env.AWS_REGION || 'us-east-1';
@@ -30,6 +36,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Favicon fallback
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'favicon.svg'), {
+        headers: { 'Content-Type': 'image/svg+xml' }
+    });
+});
+
 // Active AWS Node / Account ID in pool
 let activeAccountId = null;
 
@@ -40,9 +53,9 @@ async function getActiveEc2Client(targetAccount = null) {
             client: new EC2Client({
                 region: targetAccount.region || REGION,
                 credentials: {
-                    accessKeyId: targetAccount.accessKeyId,
-                    secretAccessKey: targetAccount.secretAccessKey,
-                    sessionToken: targetAccount.sessionToken
+                    accessKeyId: cleanCred(targetAccount.accessKeyId),
+                    secretAccessKey: cleanCred(targetAccount.secretAccessKey),
+                    sessionToken: cleanCred(targetAccount.sessionToken)
                 }
             }),
             account: targetAccount,
@@ -65,9 +78,9 @@ async function getActiveEc2Client(targetAccount = null) {
             client: new EC2Client({
                 region: account.region || REGION,
                 credentials: {
-                    accessKeyId: account.accessKeyId,
-                    secretAccessKey: account.secretAccessKey,
-                    sessionToken: account.sessionToken
+                    accessKeyId: cleanCred(account.accessKeyId),
+                    secretAccessKey: cleanCred(account.secretAccessKey),
+                    sessionToken: cleanCred(account.sessionToken)
                 }
             }),
             account: account,
@@ -77,8 +90,17 @@ async function getActiveEc2Client(targetAccount = null) {
     }
 
     // Default to system / environment credentials
+    const envCreds = (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) ? {
+        accessKeyId: cleanCred(process.env.AWS_ACCESS_KEY_ID),
+        secretAccessKey: cleanCred(process.env.AWS_SECRET_ACCESS_KEY),
+        sessionToken: cleanCred(process.env.AWS_SESSION_TOKEN)
+    } : undefined;
+
     return {
-        client: new EC2Client({ region: REGION }),
+        client: new EC2Client({
+            region: REGION,
+            ...(envCreds ? { credentials: envCreds } : {})
+        }),
         account: null,
         instanceTag: INSTANCE_TAG,
         region: REGION
@@ -798,9 +820,9 @@ app.post('/api/owner/aws-accounts', authenticateToken, requireOwner, async (req,
 
         const account = await db.saveAwsAccount({
             label: label || `Learner Lab Node (${parsedAccessKey.slice(-4)})`,
-            accessKeyId: parsedAccessKey,
-            secretAccessKey: parsedSecretKey,
-            sessionToken: parsedToken,
+            accessKeyId: cleanCred(parsedAccessKey),
+            secretAccessKey: cleanCred(parsedSecretKey),
+            sessionToken: cleanCred(parsedToken),
             region: region,
             instanceTag: instanceTag || INSTANCE_TAG,
             status: 'idle',

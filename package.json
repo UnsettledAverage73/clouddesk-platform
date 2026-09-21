@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build:css": "tailwindcss -i ./src/input.css -o ./public/css/tailwind.min.css --minify",
+    "build": "npm run build:css",
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -21,5 +23,8 @@
     "jsonwebtoken": "^9.0.3",
     "puppeteer-core": "^25.11.0",
     "razorpay": "^2.9.8"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
   }
 }

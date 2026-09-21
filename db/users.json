@@ -7,5 +7,13 @@
     "email": "rahul@test.com",
     "phone": "9876543210",
     "password": "$2b$10$UvYSgimlo1.xJ11EIwghV.6tcoxyo4yMLhwUWCEVnF9Jc9Zon3Ory"
+  },
+  {
+    "id": "usr_1qxnz1j",
+    "createdAt": "2026-09-20T00:32:46.018Z",
+    "hoursBalance": 0,
+    "name": "Atharva Student",
+    "email": "atharva@test.com",
+    "password": "$2b$10$6NQsYlUHQI.hvQLXWYC/.eNZK4kbsSpoMbCdysncxqpxgvvVyo35W"
   }
 ]

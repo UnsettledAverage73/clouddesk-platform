@@ -100,11 +100,16 @@ function renderAppUI() {
 async function fetchEc2Status() {
     try {
         const res = await fetch('/api/status');
+        if (!res.ok) return;
         const data = await res.json();
         currentEc2Data = data;
         updateStatusUI(data);
     } catch (e) {
-        console.error('Error polling status:', e);
+        // Server might be sleeping (Render cold start) or network briefly disconnected
+        const statusBadge = document.getElementById('statusBadge');
+        if (statusBadge && !currentEc2Data) {
+            statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span><span>CONNECTING...</span>`;
+        }
     }
 }
 
@@ -358,6 +363,19 @@ function startStudentCountdown(expiresAt) {
 // RAZORPAY STANDARD WEB CHECKOUT
 // ==========================================
 
+// Helper: Dynamically load Razorpay SDK on demand
+function loadRazorpaySdk() {
+    return new Promise((resolve) => {
+        if (typeof Razorpay !== 'undefined') return resolve(true);
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+    });
+}
+
 async function initiatePurchase(planId) {
     if (!currentUser) {
         showToast('Please sign in to buy hours');
@@ -379,9 +397,10 @@ async function initiatePurchase(planId) {
         const orderData = await res.json();
         if (!res.ok) throw new Error(orderData.error || 'Failed to create order');
 
-        // Check if Razorpay script is loaded
-        if (typeof Razorpay === 'undefined') {
-            throw new Error('Razorpay Checkout SDK is loading, please try again in a moment');
+        // Dynamically load Razorpay SDK if not already loaded
+        const sdkLoaded = await loadRazorpaySdk();
+        if (!sdkLoaded || typeof Razorpay === 'undefined') {
+            throw new Error('Could not load Razorpay Checkout SDK. Please disable ad-blockers and try again.');
         }
 
         // Configure Razorpay Standard Checkout Options
